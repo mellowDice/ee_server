@@ -1,13 +1,14 @@
 import random
 from math import sin, cos, pi
 from functools import reduce
+landscape_scale_factor = 20
 
 def fractal_landscape(x_size, y_size, x_res, y_res, levels=1, dampening=0.4, seed=0):
     amplitude = 1
     result = new_2D_matrix(x_size, y_size)
     for level in range(levels):
         perlin = perlin_2D(x_size, y_size, x_res // 2**level, y_res // 2**level, seed)
-        result = [[result[x][y] + perlin[x][y]*amplitude for y in range(y_size)] for x in range(x_size)]
+        result = [[(result[x][y] + landscape_scale_factor * perlin[x][y]*amplitude) for y in range(y_size)] for x in range(x_size)]
         amplitude *= dampening
     return result
 
@@ -74,5 +75,6 @@ def new_2D_matrix(x, y):
     return [[0 for j in range(y)] for i in range(x)]
 
 
-fine_grid = fractal_landscape(x_size=300, y_size=300, x_res=300, y_res=300, levels=8, dampening=0.4)
-print('\n'.join([' '.join([str(cell*1000//1/1000) for cell in row]) for row in fine_grid]))
+# fine_grid = fractal_landscape(x_size=300, y_size=300, x_res=300, y_res=300, levels=8, dampening=0.4)
+# print(fine_grid)
+# print('\n'.join([' '.join([str(20*cell*1000//1/1000) for cell in row]) for row in fine_grid]))
