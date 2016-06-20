@@ -1,10 +1,6 @@
 import random
 from math import sin, cos, pi
 from functools import reduce
-x=200
-y=200
-x_res = 100
-y_res = 100
 
 def fractal_landscape(x_size, y_size, x_res, y_res, levels=1, dampening=0.4, seed=0):
     amplitude = 1
@@ -78,5 +74,5 @@ def new_2D_matrix(x, y):
     return [[0 for j in range(y)] for i in range(x)]
 
 
-# fine_grid = fractal_landscape(x, y, x_res, y_res, 1)
-# print('\n'.join([' '.join([str(cell*1000//1/1000) for cell in row]) for row in fine_grid]))
+fine_grid = fractal_landscape(x_size=300, y_size=300, x_res=300, y_res=300, levels=8, dampening=0.4)
+print('\n'.join([' '.join([str(cell*1000//1/1000) for cell in row]) for row in fine_grid]))
