@@ -1,4 +1,6 @@
 Flask==0.10.1
 Flask-Script==2.0.5
-Flask-SocketIO==0.4.1
+Flask-SocketIO==1.0
 gunicorn==19.1.1
+versiontools==1.8.1
+eventlet==0.19.0
