@@ -1,5 +1,6 @@
 from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
+from ee_modules.landscape.fractal_landscape import fractal_landscape
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -22,6 +23,12 @@ def handle_user_movement(json):
     # Call service
     emit('my response', json, broadcast=True)#broadcasts messages to user. also works with send
     share_user_movement(json)
+
+# request landscape
+@socketio.on('request_landscape')
+def handle_landscape_request(json):
+    print('received landscape request')
+    emit('landscape_matrix', {data: fractal_landscape(300, 300, 300, 300, 8)})
 
 def share_user_movement(json): 
     print('send user movement to other users' + str(json))
