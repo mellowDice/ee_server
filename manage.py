@@ -23,15 +23,18 @@ def send_new_user_data():
 
 @socketio.on('connect')
 def test_connect():
+    # on one client connection does it send that client all current users? 
+    # on the second client connection does it send the other user the new user? 
+    # does the second client get the other users? 
     global all_users, user_count
-    print('connect', request.sid)
+    print('connected users', all_users)
     user_count += 1
     all_users.append(request.sid)
 
     
     # print(all_users)
     emit('spawn', {'id': request.sid}, broadcast=True)
-    emit('spawn', all_users)
+    # emit('spawn', {'users': all_users})
 
 # Broadcast to client
 @socketio.on('user_movement')
@@ -65,7 +68,7 @@ def handle_user_direction(json):
 def disconnect():
     print('Client disconnected', request.sid)
     all_users.remove(request.sid)
-    emit('despawn', {'id': request.sid}, broadcast=True)
+    emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
 # error handling
 
