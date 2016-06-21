@@ -6,10 +6,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 socketio = SocketIO(app)
 
+user_count = 0
 # Setup
 def store_user():
+    print(request.sid) # user's session id
     # Connect DB and store user
-    return 1 # User id placeholder
+    user_count += 1 # User id placeholder
+    return user_count
 
 @socketio.on('connect')
 def test_connect():
@@ -49,6 +52,8 @@ def handle_json(json):
 @socketio.on('disconnect', namespace='/chat')
 def test_disconnect():
     print('Client disconnected')
+    user_count -= 1
+    return user_count
 
 
 if __name__ == '__main__':
