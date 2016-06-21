@@ -29,9 +29,9 @@ def test_connect():
     all_users.append(request.sid)
 
     
-    print(all_users)
-    # emit('spawn', request.sid, broadcast=True)
-    # emit('spawn', all_users)
+    # print(all_users)
+    emit('spawn', {'id': request.sid}, broadcast=True)
+    emit('spawn', all_users)
 
 # Broadcast to client
 @socketio.on('user_movement')
@@ -47,10 +47,11 @@ def handle_landscape_request(json):
     print('received landscape request')
     emit('landscape_matrix', {data: fractal_landscape(300, 300, 300, 300, 8)})
 
+@socketio.on('move')
 def share_user_movement(json): 
     print('send user movement to other users' + str(json))
     #Get users from DB and send data to each
-    emit('move', json, namespace='/')
+    emit('move', {'id': request.sid, 'coordinates': json}, broadcast=True)
 
 # Listen for client data
 
@@ -63,12 +64,12 @@ def handle_user_direction(json):
 @socketio.on('disconnect')
 def disconnect():
     print('Client disconnected', request.sid)
-    # all_users.remove(request.sid)
-    # emit('despawn', request.sid, broadcast=True)
+    all_users.remove(request.sid)
+    emit('despawn', {'id': request.sid}, broadcast=True)
 
 # error handling
 
-@socketio.on_error()
+@socketio.on_error()    
 def error_handler(e):
     print('error', e)
     pass
