@@ -22,7 +22,8 @@ def index():
 
 # Setup
 def send_new_user_terrain():
-    emit('load', {'terrain':fractal_landscape(300, 300, 300, 300, 4)}, room=request.sid) # emits just to new connecting user
+    print('Build Terrain')
+    # emit('load', {'terrain':fractal_landscape(300, 300, 300, 300, 4)}, room=request.sid) # emits just to new connecting user
 
 def send_users_to_new_user(): 
     print('in send_users_to_new_user', request.sid)
@@ -35,10 +36,10 @@ def test_connect():
     global all_users, user_count
     print('connect with socket info', request.sid)
     user_count += 1
+    send_users_to_new_user()
     all_users.append(request.sid)
     send_new_user_terrain()
-    send_users_to_new_user()
-    emit('spawn', {'id': request.sid, 'count': user_count}, broadcast=True)
+    emit('spawn', {'id': request.sid, 'count': user_count}, broadcast=True, include_self=False)
 
 @socketio.on('move')
 def share_user_movement(json): 
