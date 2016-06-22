@@ -1,14 +1,16 @@
 import random
-from math import sin, cos, pi
+import numpy as np
+from math import sin, cos, pi, sqrt
 from functools import reduce
-landscape_scale_factor = 20
 
 def fractal_landscape(x_size, y_size, x_res, y_res, levels=1, dampening=0.4, seed=0):
+
     amplitude = 1
     result = new_2D_matrix(x_size, y_size)
     for level in range(levels):
+        amplitude_factor = amplitude / (1 + amplitude)
         perlin = perlin_2D(x_size, y_size, x_res // 2**level, y_res // 2**level, seed)
-        result = [[(result[x][y] + landscape_scale_factor * perlin[x][y]*amplitude) for y in range(y_size)] for x in range(x_size)]
+        result = [[((1 - amplitude_factor) * result[x][y] + amplitude_factor * perlin[x][y]*amplitude) for y in range(y_size)] for x in range(x_size)]
         amplitude *= dampening
     return result
 
@@ -41,8 +43,8 @@ def create_local_fine_grid(x_res, y_res, a00, a10, a01, a11):
             n10 = dot_product_2D((x  , 1-y), a10)
             n11 = dot_product_2D((1-x, 1-y), a11)
             # linearly interpolate
-            fine_grid[i][j] = smoothinterp(smoothinterp(n00, n01, x), smoothinterp(n10, n11, x), y)
-    return fine_grid;
+            fine_grid[i][j] = smoothinterp(smoothinterp(n00, n01, x), smoothinterp(n10, n11, x), y) / (sqrt(2) / 2) + 1 # range should be 0 to 1 instead of -sqrt(2)/4 to sqrt(2)/4
+    return fine_grid
 
 
 def create_coarse_grid(rows, cols, seed=0):
@@ -75,6 +77,8 @@ def new_2D_matrix(x, y):
     return [[0 for j in range(y)] for i in range(x)]
 
 
-# fine_grid = fractal_landscape(x_size=300, y_size=300, x_res=300, y_res=300, levels=8, dampening=0.4)
+# fine_grid = fractal_landscape(x_size=1000, y_size=100, x_res=40, y_res=20, levels=1, dampening=0.4, seed=random.uniform(0, 10000000))
+# print(np.matrix(fine_grid).min())
+# print(np.matrix(fine_grid).max())
 # print(fine_grid)
 # print('\n'.join([' '.join([str(20*cell*1000//1/1000) for cell in row]) for row in fine_grid]))
