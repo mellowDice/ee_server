@@ -2,7 +2,6 @@ import random
 import numpy as np
 from math import sin, cos, pi, sqrt
 from functools import reduce
-landscape_scale_factor = 1
 
 def fractal_landscape(x_size, y_size, x_res, y_res, levels=1, dampening=0.4, seed=0):
 
