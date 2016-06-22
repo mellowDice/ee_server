@@ -77,8 +77,8 @@ def new_2D_matrix(x, y):
     return [[0 for j in range(y)] for i in range(x)]
 
 
-fine_grid = fractal_landscape(x_size=1000, y_size=100, x_res=40, y_res=20, levels=1, dampening=0.4, seed=random.uniform(0, 10000000))
-print(np.matrix(fine_grid).min())
-print(np.matrix(fine_grid).max())
+# fine_grid = fractal_landscape(x_size=1000, y_size=100, x_res=40, y_res=20, levels=1, dampening=0.4, seed=random.uniform(0, 10000000))
+# print(np.matrix(fine_grid).min())
+# print(np.matrix(fine_grid).max())
 # print(fine_grid)
 # print('\n'.join([' '.join([str(20*cell*1000//1/1000) for cell in row]) for row in fine_grid]))
