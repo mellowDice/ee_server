@@ -27,9 +27,12 @@ def send_new_user_terrain():
 
 def send_users_to_new_user(): 
     print('in send_users_to_new_user', request.sid)
+    emit('requestPosition', broadcast=True)
     for player in all_users:
         print('call spawn event', player)
+        # add check for already exists
         emit('spawn', {'id': player}, room=request.sid)
+
 
 @socketio.on('connect')
 def test_connect():
@@ -73,14 +76,5 @@ def default_error_handler(e):
 
 if __name__ == '__main__':
     # socketio.run(app)
-    ADMINS = ['elkavanaugh@gmail.com']
-    if not app.debug:
-        import logging
-        from logging.handlers import SMTPHandler
-        mail_handler = SMTPHandler('127.0.0.1',
-                                   'server-error@example.com',
-                                   ADMINS, 'YourApplication Failed')
-        mail_handler.setLevel(logging.ERROR)
-        app.logger.addHandler(mail_handler)
     eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
 
