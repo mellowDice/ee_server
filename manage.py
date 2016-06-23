@@ -26,10 +26,15 @@ def send_new_user_terrain():
     # emit('load', {'terrain':fractal_landscape(300, 300, 300, 300, 4)}, room=request.sid) # emits just to new connecting user
 
 def send_users_to_new_user(): 
-    print('in send_users_to_new_user', request.sid)
     for player in all_users:
         print('call spawn event', player)
-        emit('spawn', {'id': player}, room=request.sid)
+        # add check for already exists
+        request_position(); 
+        emit('spawn', {"id": player}, room=request.sid)
+
+def request_position(): 
+    print('call request position', request.sid)
+    emit('requestPosition', {},  broadcast=True)
 
 @socketio.on('connect')
 def test_connect():
@@ -47,7 +52,16 @@ def share_user_movement(json):
     x = json["x"]
     y = json["y"]
     z = json["z"]
-    emit('playerMove', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True)
+    emit('playerMove', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True, include_self=False)
+
+@socketio.on('playerPosition')
+def send_position_to_new_user(json):
+    print('called this', json); 
+    x = json["x"]
+    y = json["y"]
+    z = json["z"]
+    print('this should really only go to new user', request.sid, x, y, z); 
+    emit('updatePosition', {"id": request.sid, "x": x, "y": y, "z": z}, broadcast=True)
 
 # disconnect 
 
@@ -73,14 +87,5 @@ def default_error_handler(e):
 
 if __name__ == '__main__':
     # socketio.run(app)
-    ADMINS = ['elkavanaugh@gmail.com']
-    if not app.debug:
-        import logging
-        from logging.handlers import SMTPHandler
-        mail_handler = SMTPHandler('127.0.0.1',
-                                   'server-error@example.com',
-                                   ADMINS, 'YourApplication Failed')
-        mail_handler.setLevel(logging.ERROR)
-        app.logger.addHandler(mail_handler)
     eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
 
