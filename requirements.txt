@@ -4,5 +4,5 @@ Flask-SocketIO==1.0
 gunicorn==19.1.1
 versiontools==1.8.1
 eventlet==0.19.0
-
+numpy
 
