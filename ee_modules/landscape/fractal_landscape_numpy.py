@@ -1,13 +1,16 @@
 import numpy as np
 from math import sin, cos, pi, sqrt, ceil, floor, log
 
-def build_landscape(width, height, octaves=8, dampening=0.4, scaling=2):
+def build_landscape(width, height, octaves=3, dampening=0.4, scaling=2):
     landscape = np.zeros((width, height))
 
     # ensure size is large enough for 
-    octaves = max(floor(log(min(width, height), scaling)), octaves)
+    octaves = min(floor(log(min(width, height), scaling)), octaves)
+    scale_factor = 1
     for octave in range(octaves):
-        landscape += noise_2d(width, height, width // scaling ** octave, height // scaling ** octave) * (1-dampening) * dampening ** octave
+        landscape = landscape + noise_2d(width, height, width // (scaling ** octave), height // (scaling ** octave)) * scale_factor
+        scale_factor *= dampening
+
     return landscape
 
 def noise_2d(width, height, period_width, period_height):
@@ -58,10 +61,10 @@ def noise_2d(width, height, period_width, period_height):
     fine_grid = fine_grid.transpose(2, 3, 0, 1)
     fine_grid = fine_grid[0,0] + fine_grid[1,0] + fine_grid[0,1] + fine_grid[1,1] 
 
-    return fine_grid[:width, :height] + 0.5
+    return 2 * fine_grid[:width, :height] + 1
 
 
 # landscape = noise_2d(200,200,12,12)
-landscape = build_landscape(200, 200)
+landscape = build_landscape(2000, 200)
 print(landscape.shape)
 np.savetxt('test.txt', landscape)
