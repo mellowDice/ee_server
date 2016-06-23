@@ -88,4 +88,3 @@ def default_error_handler(e):
 if __name__ == '__main__':
     # socketio.run(app)
     eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
-
