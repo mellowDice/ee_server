@@ -23,7 +23,7 @@ def index():
 # Setup
 def send_new_user_terrain():
     print('Build Terrain')
-    # emit('load', {'terrain':fractal_landscape(300, 300, 300, 300, 4)}, room=request.sid) # emits just to new connecting user
+    emit('load', {'terrain':fractal_landscape(250, 250, 50, 50, 1)}, room=request.sid) # emits just to new connecting user
 
 def send_users_to_new_user(): 
     for player in all_users:
