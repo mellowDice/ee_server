@@ -3,7 +3,8 @@ eventlet.monkey_patch()
 
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
-from ee_modules.landscape.fractal_landscape import fractal_landscape
+from ee_modules.landscape.fractal_landscape_numpy import build_landscape
+import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -23,7 +24,9 @@ def index():
 # Setup
 def send_new_user_terrain():
     print('Build Terrain')
-    emit('load', {'terrain':fractal_landscape(250, 250, 50, 50, 1)}, room=request.sid) # emits just to new connecting user
+    seed = datetime.datetime.now()
+    seed = seed.hour + 24 * (seed.day + 31 * seed.month)
+    emit('load', {'terrain':build_landscape(250, 250, seed=100000 + seed).tolist()}, room=request.sid) # emits just to new connecting user
 
 def send_users_to_new_user(): 
     for player in all_users:

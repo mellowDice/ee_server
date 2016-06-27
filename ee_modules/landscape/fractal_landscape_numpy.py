@@ -1,7 +1,7 @@
 import numpy as np
 from math import sin, cos, pi, sqrt, ceil, floor, log
 
-def build_landscape(width, height, octaves=3, scaling=1.8, seed=-1):
+def build_landscape(width, height, octaves=8, scaling=1.8, seed=-1):
     landscape = np.zeros((width, height))
 
     # octaves limited if grid is too small
@@ -74,5 +74,5 @@ def noise_2d(width, height, period_width, period_height, seed=-1):
 
 
 # landscape = noise_2d(200,200,100,100)
-landscape = build_landscape(200, 200, octaves=8)
-np.savetxt('test.txt', landscape)
+# landscape = build_landscape(200, 200, octaves=8)
+# np.savetxt('test.txt', landscape)
