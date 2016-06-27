@@ -1,84 +1,78 @@
-import random
 import numpy as np
-from math import sin, cos, pi, sqrt
-from functools import reduce
+from math import sin, cos, pi, sqrt, ceil, floor, log
 
-def fractal_landscape(x_size, y_size, x_res, y_res, levels=1, dampening=0.4, seed=0):
+def build_landscape(width, height, octaves=8, scaling=1.8, seed=-1):
+    landscape = np.zeros((width, height))
 
+    # octaves limited if grid is too small
+    octaves = min(floor(log(min(width, height), scaling))-1, octaves)
+    scale = min(width, height)  # scale = size of features
     amplitude = 1
-    result = new_2D_matrix(x_size, y_size)
-    for level in range(levels):
-        amplitude_factor = amplitude / (1 + amplitude)
-        perlin = perlin_2D(x_size, y_size, x_res // 2**level, y_res // 2**level, seed)
-        result = [[((1 - amplitude_factor) * result[x][y] + amplitude_factor * perlin[x][y]*amplitude) for y in range(y_size)] for x in range(x_size)]
-        amplitude *= dampening
-    return result
+    for octave in range(octaves):
+        # octave_intensity = noise_2d(width, height, width, height, seed=seed) * amplitude
+        amplitude *= noise_2d(width, height, width/2, height/2, seed=seed)
+        landscape = landscape * (1 - amplitude) + noise_2d(width, height, scale, scale, seed=seed) * amplitude
+        scale /= scaling
+    return landscape
+                  
+def noise_2d(width, height, period_width, period_height, seed=-1):
+    # ensure everything is an integer
+    width //= 1
+    height //=1
+    period_width //=1
+    period_height //=1
 
-def perlin_2D(x_size, y_size, x_res, y_res, seed=0):
-    fine_grid = new_2D_matrix(x_size, y_size)
-    coarse_grid = create_coarse_grid(x_size // x_res + 1, y_size // y_res + 1, seed)
-    for x in range(len(coarse_grid)-1):
-        for y in range(len(coarse_grid[x])-1):
-            a00 = coarse_grid[x][y]
-            a01 = coarse_grid[x][y+1]
-            a10 = coarse_grid[x+1][y]
-            a11 = coarse_grid[x+1][y+1]
-            local_fine_grid = create_local_fine_grid(x_res, y_res, a00, a01, a10, a11)
-            for local_x in range(len(local_fine_grid)):
-                for local_y in range(len(local_fine_grid[local_x])):
-                    fine_grid[local_x + x * x_res][local_y + y * y_res] = local_fine_grid[local_x][local_y]
-    return fine_grid
+    # set the seed if one is set
+    if seed != -1:
+        np.random.seed(seed)
 
+    coarse_i_count = ceil(width / period_width)
+    coarse_j_count = ceil(height / period_height)
 
-def create_local_fine_grid(x_res, y_res, a00, a10, a01, a11):
-    fine_grid = new_2D_matrix(x_res, y_res)
-    for j in range(y_res):
-        for i in range(x_res):
-            # what is the location of the subpoint?
-            x = i / x_res
-            y = j / y_res
-            # what are the 4 dot products
-            n00 = dot_product_2D((x  , y  ), a00)
-            n01 = dot_product_2D((1-x, y  ), a01)
-            n10 = dot_product_2D((x  , 1-y), a10)
-            n11 = dot_product_2D((1-x, 1-y), a11)
-            # linearly interpolate
-            fine_grid[i][j] = smoothinterp(smoothinterp(n00, n01, x), smoothinterp(n10, n11, x), y) / (sqrt(2) / 2) + 1 # range should be 0 to 1 instead of -sqrt(2)/4 to sqrt(2)/4
-    return fine_grid
+    # The 2D course-grid matrix of random unit vectors, which defines the grid, with submatrix [[upper-left, upper-right], [bottom-left, bottom-right]], with subarray [vector-x, vector-y]
+    coarse_grid = np.random.rand(coarse_i_count + 1, coarse_j_count + 1) * 2 * pi
+    coarse_grid = np.array([[coarse_grid[:-1, :-1], coarse_grid[1:, :-1]],
+                            [coarse_grid[:-1, 1: ], coarse_grid[1:, 1: ]]])
+    coarse_grid = np.array([np.cos(coarse_grid), np.sin(coarse_grid)]).transpose(3, 4, 2, 1, 0)
+    # generate fine grid by repeating coarse grid to fill space
+    fine_coarse_grid = np.repeat(np.repeat(coarse_grid, period_width, axis=0), period_height, axis=1)
 
+    # create a left-to-right gradient in fine grid dimensions
+    h_step = 1/period_width
+    v_step = 1/period_height
+    fine_grid_gradient_up, fine_grid_gradient_left = np.mgrid[1-h_step/2 : 0 : -h_step, 1-v_step/2 : 0 : -v_step]
 
-def create_coarse_grid(rows, cols, seed=0):
-    """create grid with tuples representing random unit vectors"""
-    random.seed(seed)
-    return [[angle_to_unit_vector(random.uniform(0, 2*pi)) for j in range(cols)] for i in range(rows)]
+    # The 2D fine-grid weighting matrix for interpolation, with submatrix [[upper-left, upper-right], [bottom-left, bottom-right]], and vector subarray [vector-x, vector-y] (vector-x = vector-y)
+    weighting_fine_grid = fine_grid_gradient_left * fine_grid_gradient_up
+    weighting_fine_grid = np.array([
+                                    [
+                                     [weighting_fine_grid[:   , :], weighting_fine_grid[:   , ::-1]],  # upper-left and upper-right weightings
+                                     [weighting_fine_grid[::-1, :], weighting_fine_grid[::-1, ::-1]]   # lower-left and lower-right weightings
+                                    ],] * 2
+                                   ).transpose(3, 4, 1, 2, 0)
+    weighting_fine_grid = 3*weighting_fine_grid**2 - 2*weighting_fine_grid**3
+    weighting_fine_grid_tiled = np.tile(weighting_fine_grid, (coarse_i_count, coarse_j_count, 1, 1, 1))
 
+    # The 2D fine-grid vectors matrix for determining height (by multiplying vs. coarse-grid vectors), with submatrix [[upper-left, upper-right], [bottom-left, bottom-right]], and vector subarray [vector-x, vector-y]
+    vectors_fine_grid = np.array( 
+                            [[[-fine_grid_gradient_left[:, ::-1], -fine_grid_gradient_up[::-1, :]],   # upper-left
+                              [ fine_grid_gradient_left[:, :   ], -fine_grid_gradient_up[::-1, :]]],  # upper-right
+                             [[-fine_grid_gradient_left[:, ::-1],  fine_grid_gradient_up[:   , :]],   # lower-left
+                              [ fine_grid_gradient_left[:, :   ],  fine_grid_gradient_up[:   , :]]]]  # lower-right
+                        ).transpose(3, 4, 0, 1, 2)
+    vectors_fine_grid_tiled = np.tile(vectors_fine_grid, (coarse_i_count, coarse_j_count, 1, 1, 1))
+    fine_grid = fine_coarse_grid * vectors_fine_grid_tiled * weighting_fine_grid_tiled
 
-def angle_to_unit_vector(angle):
-    return cos(angle), sin(angle)
+    # add multiplied vector-x + multiplied vector-y to get dot product
+    fine_grid = fine_grid.transpose(4, 0, 1, 2, 3)
+    fine_grid = fine_grid[0] + fine_grid[1]
 
+    fine_grid = fine_grid.transpose(2, 3, 0, 1)
+    fine_grid = fine_grid[0,0] + fine_grid[1,0] + fine_grid[0,1] + fine_grid[1,1] 
 
-def lerp(a0, a1, w):
-    return (1.0 - w)*a0 + w*a1
-
-
-def cosinterp(a0, a1, w):
-    return (a0-a1)*((cos(w * pi)+1)/2) + a1
-
-
-def smoothinterp(a0, a1, w):
-    return (a0-a1)*((3*(w-1)**2 + 2*(w-1)**3)) + a1
-
-
-def dot_product_2D(m0, m1):
-    return m0[0]*m1[0] + m0[1]*m1[1]
+    return fine_grid[:width, :height] + 0.5
 
 
-def new_2D_matrix(x, y):
-    return [[0 for j in range(y)] for i in range(x)]
-
-
-# fine_grid = fractal_landscape(x_size=1000, y_size=100, x_res=40, y_res=20, levels=1, dampening=0.4, seed=random.uniform(0, 10000000))
-# print(np.matrix(fine_grid).min())
-# print(np.matrix(fine_grid).max())
-# print(fine_grid)
-# print('\n'.join([' '.join([str(20*cell*1000//1/1000) for cell in row]) for row in fine_grid]))
+# landscape = noise_2d(200,200,100,100)
+# landscape = build_landscape(200, 200, octaves=8)
+# np.savetxt('test.txt', landscape)
