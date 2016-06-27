@@ -3,7 +3,7 @@ eventlet.monkey_patch()
 
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
-from ee_modules.landscape.fractal_landscape_numpy import build_landscape
+from ee_modules.landscape.fractal_landscape import build_landscape
 import datetime
 
 app = Flask(__name__)
