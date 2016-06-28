@@ -10,7 +10,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 
 
-
 socketio = SocketIO(app, async_mode='eventlet')
 
 all_users = []
@@ -31,7 +30,6 @@ def send_new_user_terrain():
 def send_users_to_new_user(): 
     for player in all_users:
         print('call spawn event', player)
-        # add check for already exists
         request_position(); 
         emit('spawn', {"id": player}, room=request.sid)
 
@@ -43,36 +41,32 @@ def request_position():
 def test_connect():
     global all_users, user_count
     print('connect with socket info', request.sid)
-    user_count += 1
     send_users_to_new_user()
     all_users.append(request.sid)
     send_new_user_terrain()
     emit('spawn', {'id': request.sid, 'count': user_count}, broadcast=True, include_self=False)
 
+def create_location_object(user_id, data):
+    x = data["x"]
+    y = data["y"]
+    z = data["z"]
+    return {'id': user_id, 'x': x, 'y': y, 'z': z}
+
 @socketio.on('move')
 def share_user_movement(json): 
     print('send user movement to other users' + str(json) + request.sid)
-    x = json["x"]
-    y = json["y"]
-    z = json["z"]
-    emit('playerMove', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True, include_self=False)
+    emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
 def share_user_movement(json): 
     print('send user movement to other users' + str(json) + request.sid)
-    x = json["x"]
-    y = json["y"]
-    z = json["z"]
-    emit('otherPlayerLook', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True, include_self=False)
+    emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
 def send_position_to_new_user(json):
     print('called this', json); 
-    x = json["x"]
-    y = json["y"]
-    z = json["z"]
-    print('this should really only go to new user', request.sid, x, y, z); 
-    emit('updatePosition', {"id": request.sid, "x": x, "y": y, "z": z}, broadcast=True)
+    print('this should really only go to new user', request.sid); 
+    emit('updatePosition', create_location_object(request.sid, json), broadcast=True)
 
 # disconnect 
 
