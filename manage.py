@@ -25,8 +25,8 @@ def index():
 def send_new_user_terrain():
     print('Build Terrain')
     seed = datetime.datetime.now()
-    seed = seed.hour + 24 * (seed.day + 31 * seed.month)
-    emit('load', {'terrain':build_landscape(250, 250, seed=100000 + seed).tolist()}, room=request.sid) # emits just to new connecting user
+    seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
+    emit('load', {'terrain':build_landscape(250, 250, seed=seed).tolist()}, room=request.sid) # emits just to new connecting user
 
 def send_users_to_new_user(): 
     for player in all_users:
@@ -56,6 +56,14 @@ def share_user_movement(json):
     y = json["y"]
     z = json["z"]
     emit('playerMove', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True, include_self=False)
+
+@socketio.on('look')
+def share_user_movement(json): 
+    print('send user movement to other users' + str(json) + request.sid)
+    x = json["x"]
+    y = json["y"]
+    z = json["z"]
+    emit('otherPlayerLook', {'id': request.sid, 'x': x, 'y': y, 'z': z}, broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
 def send_position_to_new_user(json):
