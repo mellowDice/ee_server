@@ -20,31 +20,7 @@ user_count = 0
 def index():
     return 'Welcome to Ethereal Epoch'
 
-# Setup
-def send_new_user_terrain():
-    print('Build Terrain')
-    seed = datetime.datetime.now()
-    seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
-    emit('load', {'terrain':build_landscape(250, 250, seed=seed).tolist()}, room=request.sid) # emits just to new connecting user
-
-def send_users_to_new_user(): 
-    for player in all_users:
-        print('call spawn event', player)
-        request_position(); 
-        emit('spawn', {"id": player}, room=request.sid)
-
-def request_position(): 
-    print('call request position', request.sid)
-    emit('requestPosition', {},  broadcast=True)
-
-@socketio.on('connect')
-def test_connect():
-    global all_users, user_count
-    print('connect with socket info', request.sid)
-    send_users_to_new_user()
-    all_users.append(request.sid)
-    send_new_user_terrain()
-    emit('spawn', {'id': request.sid, 'count': user_count}, broadcast=True, include_self=False)
+# Helper Functions
 
 def create_location_object(user_id, data):
     x = data["x"]
@@ -52,14 +28,39 @@ def create_location_object(user_id, data):
     z = data["z"]
     return {'id': user_id, 'x': x, 'y': y, 'z': z}
 
+def get_terrain():
+    print('Build Terrain')
+    seed = datetime.datetime.now()
+    seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
+    return build_landscape(250, 250, seed=seed).tolist()
+
+def get_all_players_on_start(): 
+    for player in all_users:
+        emit('requestPosition', {},  room=player)
+        emit('spawn', {'id': player}, room=request.sid)
+
+# Socket Listeners 
+
+@socketio.on('connect')
+def test_connect():
+    global all_users, user_count
+    print('connect with socket info', request.sid)
+    get_terrain()
+    get_all_players_on_start()
+    all_users.append(request.sid)
+    # Alert other users of new user and load data for game start
+    emit('load', {'terrain': get_terrain()}, room=request.sid)
+    emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
+    
+
 @socketio.on('move')
 def share_user_movement(json): 
-    print('send user movement to other users' + str(json) + request.sid)
+    # print('send user movement to other users' + str(json) + request.sid)
     emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
 def share_user_movement(json): 
-    print('send user movement to other users' + str(json) + request.sid)
+    # print('send user movement to other users' + str(json) + request.sid)
     emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
