@@ -4,7 +4,11 @@ eventlet.monkey_patch()
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
 from ee_modules.landscape.fractal_landscape import build_landscape
+
 import datetime
+from threading import Timer  
+
+# import Tkinter as tk 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -14,6 +18,7 @@ socketio = SocketIO(app, async_mode='eventlet')
 
 all_users = []
 user_count = 0
+food = []
 
 
 @app.route('/hello')
@@ -21,6 +26,9 @@ def index():
     return 'Welcome to Ethereal Epoch'
 
 # Helper Functions
+def tick(interval, function, *args):
+    root.after(interval - timer() % interval, tick, interval, function, *args)
+    function(*args) # assume it doesn't block
 
 def create_location_object(user_id, data):
     x = data["x"]
@@ -38,6 +46,16 @@ def get_all_players_on_start():
     for player in all_users:
         emit('requestPosition', {},  room=player)
         emit('spawn', {'id': player}, room=request.sid)
+
+def create_food(): 
+    global food
+    emit('food', {'x': x, 'y': y, 'z': z}, broadcast=True)
+    Timer(2.0, create_food).start()
+
+def create_obstacle(): 
+    global obstacles
+    emit('obstacle', {'x': 1, "y": 1, "z": 3}, broadcast=True)
+    Timer(30.0, create_obstacle).start()
 
 # Socket Listeners 
 
@@ -69,14 +87,18 @@ def send_position_to_new_user(json):
     print('this should really only go to new user', request.sid); 
     emit('updatePosition', create_location_object(request.sid, json), broadcast=True)
 
+
+
 # disconnect 
 
 @socketio.on('disconnect')
 def disconnect():
     print('Client disconnected', request.sid)
-    global user_count
-    user_count -= 1
+    global all_users
     all_users.remove(request.sid)
+    if len(all_users) == 0:
+        Timer(2.0, create_food).stop()
+    
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
 # error handling
@@ -92,5 +114,7 @@ def default_error_handler(e):
 
 
 if __name__ == '__main__':
+    Timer(2.0, create_food).start()
+    Timer(30.0, create_obstacle).start()
     # socketio.run(app)
     eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
