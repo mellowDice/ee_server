@@ -28,15 +28,14 @@ food = {}
 obstacles = {}
 terrain = {}
 
-
 @app.route('/hello')
 def index():
     return 'Welcome to Ethereal Epoch'
 
 # Helper Functions
-def tick(interval, function, *args):
-    root.after(interval - timer() % interval, tick, interval, function, *args)
-    function(*args) # assume it doesn't block
+# def tick(interval, function, *args):
+#     root.after(interval - timer() % interval, tick, interval, function, *args)
+#     function(*args) # assume it doesn't block
 
 def create_location_object(user_id, data):
     x = data["x"]
@@ -47,16 +46,19 @@ def create_location_object(user_id, data):
 def get_random_coordinate(height):
     global terrain
     coordinates = np.random.randint(height, size=2).tolist()
-    coordinates.append(terrain[coordinates[0]][coordinates[1]])
-    return coordinates
+    position = {'x': coordinates[0], 'y': coordinates[1], 'z': terrain[coordinates[0]][coordinates[1]]}
+    print(position)
+    return position
 
 def get_terrain(height, width):
     print('Build Terrain')
     global food, obstacles, terrain
     seed = datetime.datetime.now()
     seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
+    terrain = build_landscape(height, width, seed=seed).tolist()
     for i in range(0, 15):
         obstacles[i] = get_random_coordinate(height)
+        print('hello? ', obstacles[i])
     for j in range(0, 100):
         food[j] = get_random_coordinate(height)
     return terrain 
@@ -66,16 +68,6 @@ def get_all_players_on_start():
         emit('requestPosition', {},  room=player)
         emit('spawn', {'id': player}, room=request.sid)
 
-# def create_food(): 
-#     global food
-#     # emit('food', {'x': x, 'y': y, 'z': z}, broadcast=True)
-#     Timer(2.0, create_food).start()
-
-# def create_obstacle(): 
-#     global obstacles
-#     emit('obstacle', {'x': 1, "y": 1, "z": 3}, broadcast=True)
-#     Timer(30.0, create_obstacle).start()
-
 # Socket Listeners 
 
 @socketio.on('connect')
@@ -84,8 +76,9 @@ def test_connect():
     print('connect with socket info', request.sid)
     get_all_players_on_start()
     all_users.append(request.sid)
+    get_terrain(250, 250)
     # Alert other users of new user and load data for game start
-    emit('load', {'terrain': get_terrain(250, 250), 'food': food, 'obstacles': obstacles}, room=request.sid)
+    emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
     
 
@@ -108,8 +101,17 @@ def send_position_to_new_user(json):
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
+    food[json.id] = get_random_coordinate(250)
+    food[json.id]['id'] = json.id
+    emit('eaten', food[json.id], broadcast=True)
 
-    emit('eaten', {'id': 1,'x': 2, 'y': 3,'z':4})
+@socketio.on('collision')
+def regenerate_obstacle(json): 
+    print('obstacle hit', json)
+    obstacles[json.id] = get_random_coordinate(250)
+    obstacles[json.id]['id'] = json.id
+    emit('collided', obstacles[json.id], broadcast=True)
+
 
 # disconnect 
 
@@ -118,8 +120,8 @@ def disconnect():
     print('Client disconnected', request.sid)
     global all_users
     all_users.remove(request.sid)
-    if len(all_users) == 0:
-        Timer(2.0, create_food).stop()
+    # if len(all_users) == 0:
+    #     Timer(2.0, create_food).stop()
     
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
@@ -136,7 +138,5 @@ def default_error_handler(e):
 
 
 if __name__ == '__main__':
-    # Timer(2.0, create_food).start()
-    # Timer(30.0, create_obstacle).start()
     # socketio.run(app)
     eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
