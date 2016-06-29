@@ -6,14 +6,16 @@ from flask_socketio import SocketIO, send, emit, join_room
 from ee_modules.landscape.fractal_landscape import build_landscape
 
 import datetime
-# import requests
-
+import json
 import numpy as np
-
-
+import requests
+import erequests
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 
+microservices_urls = {
+    'terrain': 'http://localhost:5000'
+}
 
 socketio = SocketIO(app, async_mode='eventlet')
 
@@ -26,6 +28,14 @@ terrain = {}
 @app.route('/')
 def index():
     return 'Welcome to Ethereal Epoch'
+
+@app.route('/send_terrain', methods=['POST'])
+def terrain_creator():
+    global terrain
+    # terrain = data.terrain
+    socketio.emit('terrain', {'terrain': request.json["terrain"]}, broadcast=True)
+    return 'Ok'
+
 
 # @app.route('/get_terrain_data')
 # def terrain(data):
@@ -65,15 +75,17 @@ def get_all_players_on_start():
 
 @socketio.on('connect')
 def test_connect():
-    global all_users, food, obstacles
+    global all_users, food, obstacles, microservices_urls, terrain
     print('connect with socket info', request.sid)
     get_all_players_on_start()
     all_users.append(request.sid)
     get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
-    emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
+    terrain = requests.get(microservices_urls["terrain"] + '/get_landscape')
+    # requests.get(microservices_urls["terrain"] + '/get_landscape')
+    # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
+    # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
     
 
 @socketio.on('move')
