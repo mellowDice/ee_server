@@ -6,15 +6,10 @@ from flask_socketio import SocketIO, send, emit, join_room
 from ee_modules.landscape.fractal_landscape import build_landscape
 
 import datetime
-from threading import Timer  
+# import requests
 
 import numpy as np
 
-# object with 100 food objects
-# object with 15 obstacles
-
-# on start, get coordinates for all food and objects
-# on eat 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -33,9 +28,6 @@ def index():
     return 'Welcome to Ethereal Epoch'
 
 # Helper Functions
-# def tick(interval, function, *args):
-#     root.after(interval - timer() % interval, tick, interval, function, *args)
-#     function(*args) # assume it doesn't block
 
 def create_location_object(user_id, data):
     x = data["x"]
@@ -47,7 +39,6 @@ def get_random_coordinate(height):
     global terrain
     coordinates = np.random.randint(height, size=2).tolist()
     position = {'x': coordinates[0], 'y': coordinates[1], 'z': terrain[coordinates[0]][coordinates[1]]}
-    print(position)
     return position
 
 def get_terrain(height, width):
@@ -58,7 +49,6 @@ def get_terrain(height, width):
     terrain = build_landscape(height, width, seed=seed).tolist()
     for i in range(0, 15):
         obstacles[i] = get_random_coordinate(height)
-        print('hello? ', obstacles[i])
     for j in range(0, 100):
         food[j] = get_random_coordinate(height)
     return terrain 
@@ -78,6 +68,7 @@ def test_connect():
     all_users.append(request.sid)
     get_terrain(250, 250)
     # Alert other users of new user and load data for game start
+    # print(food, obstacles)
     emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
     
@@ -139,4 +130,4 @@ def default_error_handler(e):
 
 if __name__ == '__main__':
     # socketio.run(app)
-    eventlet.wsgi.server(eventlet.listen(('', 6000)), app, debug=True)
+    eventlet.wsgi.server(eventlet.listen(('', 9000)), app, debug=True)
