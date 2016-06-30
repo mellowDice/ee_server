@@ -82,9 +82,14 @@ def share_user_movement(json):
     emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
-def share_user_movement(json): 
-    # print('send user movement to other users' + str(json) + request.sid)
-    emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
+def share_user_look_direction(json):
+    print('look: ' + request.sid)  
+    emit('otherPlayerLook', dict({'id': request.sid}, **json), broadcast=True, include_self=False)
+
+@socketio.on('player_state_reconcile')
+def relay_player_state(json):
+    print('state: ' + request.sid) 
+    emit('otherPlayerStateInfo', dict({'id': request.sid}, **json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
 def send_position_to_new_user(json):
@@ -105,7 +110,6 @@ def regenerate_obstacle(json):
     obstacles[json.id] = get_random_coordinate(250)
     obstacles[json.id]['id'] = json.id
     emit('collided', obstacles[json.id], broadcast=True)
-
 
 # disconnect 
 
