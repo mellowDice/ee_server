@@ -29,7 +29,7 @@ def index():
 
 # @app.route('/get_terrain_data')
 # def terrain(data):
-    
+
 # Helper Functions
 
 def create_location_object(user_id, data):
@@ -41,7 +41,7 @@ def create_location_object(user_id, data):
 def get_random_coordinate(height):
     global terrain
     coordinates = np.random.randint(height, size=2).tolist()
-    position = {'x': coordinates[0], 'y': coordinates[1], 'z': terrain[coordinates[0]][coordinates[1]]}
+    position = {'x': coordinates[0], 'y': terrain[coordinates[0]][coordinates[1]], 'z': coordinates[1]}
     return position
 
 def get_terrain(height, width):
@@ -54,14 +54,14 @@ def get_terrain(height, width):
         obstacles[i] = get_random_coordinate(height)
     for j in range(0, 100):
         food[j] = get_random_coordinate(height)
-    return terrain 
+    return terrain
 
-def get_all_players_on_start(): 
+def get_all_players_on_start():
     for player in all_users:
         emit('requestPosition', {},  room=player)
         emit('spawn', {'id': player}, room=request.sid)
 
-# Socket Listeners 
+# Socket Listeners
 
 @socketio.on('connect')
 def test_connect():
@@ -74,22 +74,22 @@ def test_connect():
     # print(food, obstacles)
     emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
-    
+
 
 @socketio.on('move')
-def share_user_movement(json): 
+def share_user_movement(json):
     # print('send user movement to other users' + str(json) + request.sid)
     emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
-def share_user_movement(json): 
+def share_user_movement(json):
     # print('send user movement to other users' + str(json) + request.sid)
     emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
 def send_position_to_new_user(json):
-    print('called this', json); 
-    print('this should really only go to new user', request.sid); 
+    print('called this', json);
+    print('this should really only go to new user', request.sid);
     emit('updatePosition', create_location_object(request.sid, json), broadcast=True)
 
 @socketio.on('eat')
@@ -100,14 +100,14 @@ def regenerate_food(json):
     emit('eaten', food[json.id], broadcast=True)
 
 @socketio.on('collision')
-def regenerate_obstacle(json): 
+def regenerate_obstacle(json):
     print('obstacle hit', json)
     obstacles[json.id] = get_random_coordinate(250)
     obstacles[json.id]['id'] = json.id
     emit('collided', obstacles[json.id], broadcast=True)
 
 
-# disconnect 
+# disconnect
 
 @socketio.on('disconnect')
 def disconnect():
@@ -116,11 +116,11 @@ def disconnect():
     all_users.remove(request.sid)
     # if len(all_users) == 0:
     #     Timer(2.0, create_food).stop()
-    
+
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
 # error handling
-@socketio.on_error()    
+@socketio.on_error()
 def error_handler(e):
     print('error', e)
     pass
