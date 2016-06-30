@@ -7,42 +7,49 @@ width = 100
 terrain = {}
 
 # Factor this out with redis and replace with references 
-def save_terrain(height, width, terrain):
+def save_terrain(rows, columns, landscape):
   global terrain, width, height
-  terrain = terrain
-  height = height
-  width = width
-  print('vars set: ', height, width, terrain)]
+  terrain = landscape
+  height = rows
+  width = columns
+  print('vars set: ', terrain)
 
 def random_coordinates():
   global terrain, height
+  print('terrain exists before random coordinates called', terrain)
   coordinates = np.random.randint(height, size=2).tolist()
+  print(coordinates)
   x = coordinates[0]
   y = coordinates[1]
-  z = terrain[x][y]
+  z = terrain[coordinates[0]][coordinates[1]]
   print('coordinate', x, y, z)
   return {'x': x, 'y': y, 'z': z}
 
-def create_terrain_object(type, id) {
+def create_or_update_terrain_object(type, id):
   global food, obstacles
   if type == 'food':
-    food[id] = update_terrain_object[id]
+    food[id] = update_coordinates(id)
   else:
-    obstacles[id] = update_terrain_object[id]
-}
+    obstacles[id] = update_coordinates(id)
 
-def update_terrain_object(idNum):
+
+def update_coordinates(idNum):
   data = random_coordinates()
-  data.id = idNum
   return data
 
 # New players can access all terrain
 def get_all_food():
   global food
+  if len(food) == 0:
+      for i in range(100):
+        create_or_update_terrain_object('food', i)
   return food
 
 def get_all_obstacles():
   global obstacles
+  if len(obstacles) == 0:
+    for j in range(15):
+      create_or_update_terrain_object('obstacles', j)
   return obstacles
 
 

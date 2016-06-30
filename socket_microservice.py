@@ -9,12 +9,14 @@ import datetime
 import json
 import numpy as np
 import requests
-import erequests
+# import erequests
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 
 microservices_urls = {
-    'terrain': 'http://localhost:5000'
+    'terrain': 'http://localhost:7000',
+    'field_objects': 'http://localhost:7001'
 }
 
 socketio = SocketIO(app, async_mode='eventlet')
@@ -31,14 +33,19 @@ def index():
 
 @app.route('/send_terrain', methods=['POST'])
 def terrain_creator():
-    global terrain
-    # terrain = data.terrain
-    socketio.emit('terrain', {'terrain': request.json["terrain"]}, broadcast=True)
+    terrain = request.json["terrain"]
+    requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
 
+@app.route('/send_field_objects', methods=['POST'])
+def field_object_creator(): 
+    food = request.json["food"]
+    obstacles = request.json["obstacles"]
+    socketio.emit('load', {'terrain': terrain, 
+                  'food': request.json["food"], 
+                  'obstacles': request.json["obstacles"]}, broadcast=True)
+    return 'Ok'
 
-# @app.route('/get_terrain_data')
-# def terrain(data):
     
 # Helper Functions
 
@@ -47,24 +54,6 @@ def create_location_object(user_id, data):
     y = data["y"]
     z = data["z"]
     return {'id': user_id, 'x': x, 'y': y, 'z': z}
-
-def get_random_coordinate(height):
-    global terrain
-    coordinates = np.random.randint(height, size=2).tolist()
-    position = {'x': coordinates[0], 'y': coordinates[1], 'z': terrain[coordinates[0]][coordinates[1]]}
-    return position
-
-def get_terrain(height, width):
-    print('Build Terrain')
-    global food, obstacles, terrain
-    seed = datetime.datetime.now()
-    seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
-    terrain = build_landscape(height, width, seed=seed).tolist()
-    for i in range(0, 15):
-        obstacles[i] = get_random_coordinate(height)
-    for j in range(0, 100):
-        food[j] = get_random_coordinate(height)
-    return terrain 
 
 def get_all_players_on_start(): 
     for player in all_users:
@@ -79,7 +68,7 @@ def test_connect():
     print('connect with socket info', request.sid)
     get_all_players_on_start()
     all_users.append(request.sid)
-    get_terrain(250, 250)
+    # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
     terrain = requests.get(microservices_urls["terrain"] + '/get_landscape')
