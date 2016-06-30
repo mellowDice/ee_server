@@ -1,12 +1,11 @@
 from flask import Flask, make_response, jsonify
-import requests
 from fractal_landscape import build_landscape
-from flask import jsonify
+
 import numpy as np
+import requests
+import datetime
 
 app = Flask(__name__)
-
-import datetime
 
 microservices_urls = {
     'terrain': 'http://localhost:7000',

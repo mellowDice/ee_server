@@ -2,18 +2,14 @@
 # Session
 # Error Handling
 # Testing
-
+# 
 import eventlet
 eventlet.monkey_patch()
 
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
-from ee_modules.landscape.fractal_landscape import build_landscape
-
-import datetime
-import json
-import numpy as np
 import requests
+# import json
 # import erequests
 
 app = Flask(__name__)
@@ -51,7 +47,6 @@ def field_object_creator():
     socketio.emit('load', {'terrain': terrain, 
                   'food': food, 
                   'obstacles': obstacles}, broadcast=True)
-    print('socket sent!!')
     return 'Ok'
 
     
@@ -69,6 +64,8 @@ def get_all_players_on_start():
         emit('spawn', {'id': player}, room=request.sid)
 
 # Socket Listeners 
+def print_response(r, **kwargs):
+    print(r.content, kwargs);
 
 @socketio.on('connect')
 def test_connect():
@@ -79,7 +76,7 @@ def test_connect():
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    requests.get(microservices_urls["terrain"] + '/get_landscape')
+    requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=print_response))
     # requests.get(microservices_urls["terrain"] + '/get_landscape')
     # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)

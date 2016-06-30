@@ -22,13 +22,16 @@ def random_coordinates():
   z = terrain[coordinates[0]][coordinates[1]]
   return {'x': x, 'y': y, 'z': z}
 
-def create_or_update_terrain_object(type, id):
+def create_or_update_terrain_object(type, i):
   global food, obstacles
-  coordinates = random_coordinates(id)
+  coordinates = random_coordinates()
   if type == 'food':
-    food[id] = coordinates
+    food[i] = coordinates
+    food["id"] = i
   else:
-    obstacles[id] = coordinates
+    obstacles[i] = coordinates
+    obstacles[i]["id"] = i
+  print('obstacles with id? ', obstacles)
   return coordinates
 
 # New players can access all terrain

@@ -6,7 +6,6 @@ app = Flask(__name__)
 
 @app.route('/terrain_objects', methods=['GET'])
 def get_terrain_objects():
-    print('food', get_all_food(), 'obstacles', get_all_obstacles())
     requests.post('http://localhost:9000/send_field_objects', json ={'food':get_all_food(), 'obstacles': get_all_obstacles()})
     return 'OK'
 
@@ -14,13 +13,11 @@ def get_terrain_objects():
 def update_object():
     objId = request.args.get('id')
     objType = request.args.get('type')
-    # data = create_or_update_terrain_object(objType, objId)
-    # return data
-    return objId + objType
+    data = create_or_update_terrain_object(objType, objId)
+    return data
 
 @app.route('/store_terrain', methods=['POST'])
 def save_landscape():
-    # terrain = request.json["terrain"]
     height = 250
     width = 250
     save_terrain(height, width, request.json["terrain"])
