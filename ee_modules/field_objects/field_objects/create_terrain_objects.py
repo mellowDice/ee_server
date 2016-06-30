@@ -12,34 +12,29 @@ def save_terrain(rows, columns, landscape):
   terrain = landscape
   height = rows
   width = columns
-  print('vars set: ', terrain)
 
 def random_coordinates():
   global terrain, height
   print('terrain exists before random coordinates called', terrain)
   coordinates = np.random.randint(height, size=2).tolist()
-  print(coordinates)
   x = coordinates[0]
   y = coordinates[1]
   z = terrain[coordinates[0]][coordinates[1]]
-  print('coordinate', x, y, z)
   return {'x': x, 'y': y, 'z': z}
 
 def create_or_update_terrain_object(type, id):
   global food, obstacles
+  coordinates = random_coordinates(id)
   if type == 'food':
-    food[id] = update_coordinates(id)
+    food[id] = coordinates
   else:
-    obstacles[id] = update_coordinates(id)
-
-
-def update_coordinates(idNum):
-  data = random_coordinates()
-  return data
+    obstacles[id] = coordinates
+  return coordinates
 
 # New players can access all terrain
 def get_all_food():
   global food
+  print(food)
   if len(food) == 0:
       for i in range(100):
         create_or_update_terrain_object('food', i)
@@ -47,6 +42,7 @@ def get_all_food():
 
 def get_all_obstacles():
   global obstacles
+  print(obstacles)
   if len(obstacles) == 0:
     for j in range(15):
       create_or_update_terrain_object('obstacles', j)

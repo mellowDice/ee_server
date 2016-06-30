@@ -1,3 +1,8 @@
+# Hooks
+# Session
+# Error Handling
+# Testing
+
 import eventlet
 eventlet.monkey_patch()
 
@@ -33,17 +38,20 @@ def index():
 
 @app.route('/send_terrain', methods=['POST'])
 def terrain_creator():
+    global terrain
     terrain = request.json["terrain"]
     requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
 
 @app.route('/send_field_objects', methods=['POST'])
 def field_object_creator(): 
+    global terrain
     food = request.json["food"]
     obstacles = request.json["obstacles"]
     socketio.emit('load', {'terrain': terrain, 
-                  'food': request.json["food"], 
-                  'obstacles': request.json["obstacles"]}, broadcast=True)
+                  'food': food, 
+                  'obstacles': obstacles}, broadcast=True)
+    print('socket sent!!')
     return 'Ok'
 
     
@@ -71,7 +79,7 @@ def test_connect():
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    terrain = requests.get(microservices_urls["terrain"] + '/get_landscape')
+    requests.get(microservices_urls["terrain"] + '/get_landscape')
     # requests.get(microservices_urls["terrain"] + '/get_landscape')
     # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
@@ -96,14 +104,14 @@ def send_position_to_new_user(json):
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
-    food[json.id] = get_random_coordinate(250)
-    food[json.id]['id'] = json.id
+    data = requests.get(microservices_urls["field_objects"] + '/update_object?type=food&id='+json.id)
+    food[json.id] = data
     emit('eaten', food[json.id], broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
-    obstacles[json.id] = get_random_coordinate(250)
+    data = requests.get(microservices_urls["field_objects"] + '/update_object?type=obstacle&id='+json.id)
     obstacles[json.id]['id'] = json.id
     emit('collided', obstacles[json.id], broadcast=True)
 
