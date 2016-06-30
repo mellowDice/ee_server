@@ -13,6 +13,11 @@ microservices_urls = {
     'socket': 'http://localhost:9000'
 }
 
+@app.route('/')
+def test_connect():
+    print('here')
+    return 'Docker hosting image on port 7000'
+
 @app.route('/get_landscape')
 def get_landscape():
     seed = datetime.datetime.now()
@@ -22,7 +27,8 @@ def get_landscape():
     requests.post(microservices_urls['field_objects']+'/store_terrain', json = {'terrain':terrain})
     requests.post(microservices_urls['socket']+'/send_terrain', json = {'terrain':terrain})
     # Delete once stored in Redis
-    return jsonify({'terrain': terrain}, 201)
+    # return jsonify({'terrain': terrain}, 201)
+    return 'ok'
 
 
 if __name__ == '__main__':

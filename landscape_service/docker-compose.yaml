@@ -1,0 +1,13 @@
+version: '2'
+services:
+
+  server:
+    build: .
+    ports:
+      - "7000:7000"
+    networks:
+      - landscape-network
+
+networks:
+  landscape-network:
+    driver: bridge

@@ -6,6 +6,6 @@ WORKDIR /app
 
 COPY requirements.txt /app
 
-EXPOSE 9000
+EXPOSE 7000
 
 ENTRYPOINT ["python", "main.py"]
