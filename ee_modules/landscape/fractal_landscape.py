@@ -13,7 +13,6 @@ def build_landscape(width, height, octaves=8, scaling=1.8, seed=-1):
         amplitude *= noise_2d(width, height, width/2, height/2, seed=seed)
         landscape = landscape * (1 - amplitude) + noise_2d(width, height, scale, scale, seed=seed) * amplitude
         scale /= scaling
-    print('in build_landscape')
     return landscape
                   
 def noise_2d(width, height, period_width, period_height, seed=-1):
