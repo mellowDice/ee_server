@@ -38,7 +38,7 @@ def terrain_creator(r, *args,  **kwargs):
     print('terrain creator', args, kwargs)
     print('response', r.json(), args['proxies'])
     # terrain = request.json["terrain"]
-    # requests.get(microservices_urls['field_objects'] + '/terrain_objects')
+    requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
 
 @app.route('/send_field_objects', methods=['POST'])
@@ -78,7 +78,8 @@ def test_connect():
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
+    # requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
+    requests.get(microservices_urls["terrain"] + '/get_landscape')
     # requests.get(microservices_urls["terrain"] + '/get_landscape')
     # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)

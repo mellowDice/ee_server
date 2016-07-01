@@ -1,11 +1,11 @@
-FROM docteurfraise/flask-python34
+FROM tiangolo/uwsgi-nginx-flask:flask
 
 RUN mkdir app
 ADD . /app
 WORKDIR /app
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+
+RUN pip install -r requirements.txt 
 
 EXPOSE 7000
 
-CMD ["python", "main.py"]
+ENTRYPOINT ["python", "main.py"]
