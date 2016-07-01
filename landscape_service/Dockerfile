@@ -1,11 +1,11 @@
-FROM python:3.5.1-onbuild
+FROM docteurfraise/flask-python34
 
 RUN mkdir app
 ADD . /app
 WORKDIR /app
-
-COPY requirements.txt /app
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
 EXPOSE 7000
 
-ENTRYPOINT ["python", "main.py"]
+CMD ["python", "main.py"]

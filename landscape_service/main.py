@@ -28,7 +28,7 @@ def get_landscape():
     requests.post(microservices_urls['socket']+'/send_terrain', json = {'terrain':terrain})
     # Delete once stored in Redis
     # return jsonify({'terrain': terrain}, 201)
-    return 'ok'
+    return jsonify({'response':'ok'})
 
 
 if __name__ == '__main__':
