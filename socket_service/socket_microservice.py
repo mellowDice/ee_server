@@ -11,14 +11,14 @@ from flask_socketio import SocketIO, send, emit, join_room
 import requests
 # import json
 # import erequests
+microservices_urls = {
+  'socket':'http://107.170.232.95:6000',
+  'terrain': 'http://159.203.226.234',
+  'field_objects': 'http://192.241.215.101', 
+}
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
-
-microservices_urls = {
-    'terrain': 'http://localhost:7000',
-    'field_objects': 'http://localhost:7001'
-}
 
 socketio = SocketIO(app, async_mode='eventlet')
 
@@ -34,9 +34,9 @@ def index():
 
 @app.route('/send_terrain', methods=['POST'])
 def terrain_creator(r, *args,  **kwargs):
-    global terrain
-    print('terrain creator', args, kwargs)
-    print('response', r.json(), args['proxies'])
+    # global terrain
+    # print('terrain creator', args, kwargs)
+    # print('response', r.json(), args['proxies'])
     # terrain = request.json["terrain"]
     requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
@@ -78,8 +78,8 @@ def test_connect():
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    # requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
-    requests.get(microservices_urls["terrain"] + '/get_landscape')
+    requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
+    # requests.get(microservices_urls["terrain"] + '/get_landscape')
     # requests.get(microservices_urls["terrain"] + '/get_landscape')
     # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
     # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
@@ -123,9 +123,6 @@ def disconnect():
     print('Client disconnected', request.sid)
     global all_users
     all_users.remove(request.sid)
-    # if len(all_users) == 0:
-    #     Timer(2.0, create_food).stop()
-    
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
 # error handling

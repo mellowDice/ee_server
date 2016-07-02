@@ -9,4 +9,4 @@ RUN pip install eventlet
 
 EXPOSE 7001
 
-CMD python api.py
+ENTRYPOINT ["python", "api.py"]

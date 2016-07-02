@@ -1,11 +1,17 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, make_response, jsonify
 from fractal_landscape import build_landscape
 
+import eventlet.wsgi
 import numpy as np
 import requests
 import datetime
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret'
+
 
 microservices_urls = {
     'terrain': 'http://localhost:7000',
@@ -15,8 +21,8 @@ microservices_urls = {
 
 @app.route('/')
 def test_connect():
-    print('here')
     return 'Docker hosting image on port 7000'
+
 
 @app.route('/get_landscape')
 def get_landscape():
@@ -34,4 +40,7 @@ def get_landscape():
 
 
 if __name__ == '__main__':
-    app.run(port=7000, debug=True)
+    print('running')
+    # app.run(host='0.0.0.0', port=7000, debug=True)
+    eventlet.wsgi.server(eventlet.listen(('', 7000)), app, debug=True)
+
