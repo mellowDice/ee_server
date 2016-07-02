@@ -39,10 +39,10 @@ def index():
 
 @app.route('/send_terrain', methods=['POST'])
 def terrain_creator(*args,  **kwargs):
-    # global terrain
-    # print('terrain creator', args, kwargs)
+    global terrain
+    print('terrain creator', request.json["terrain"])
     # print('response', r.json(), args['proxies'])
-    # terrain = request.json["terrain"]
+    terrain = request.json["terrain"]
     requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
 
@@ -53,6 +53,7 @@ def field_object_creator():
     obstacles = request.json["obstacles"]
     print('obstacles', obstacles)
     print('food', food)
+    print('terrain', terrain)
     socketio.emit('load', {'terrain': terrain, 
                   'food': food, 
                   'obstacles': obstacles}, broadcast=True)
