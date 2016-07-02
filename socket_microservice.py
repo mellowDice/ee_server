@@ -5,20 +5,25 @@
 # 
 import eventlet
 eventlet.monkey_patch()
-
+import traceback
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
 import requests
 # import json
 # import erequests
+# microservices_urls = {
+#   'socket':'http://107.170.232.95:6000',
+#   'terrain': 'http://159.203.226.234',
+#   'field_objects': 'http://192.241.215.101', 
+# }
+microservices_urls = {
+    'socket': 'http://localhost:9000',
+    'terrain': 'http://localhost:7000',
+    'field_objects': 'http://localhost:7001',
+}
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
-
-microservices_urls = {
-    'terrain': 'http://localhost:7000',
-    'field_objects': 'http://localhost:7001'
-}
 
 socketio = SocketIO(app, async_mode='eventlet')
 
@@ -33,12 +38,12 @@ def index():
     return 'Welcome to Ethereal Epoch'
 
 @app.route('/send_terrain', methods=['POST'])
-def terrain_creator(r, *args,  **kwargs):
-    global terrain
-    print('terrain creator', args, kwargs)
-    print('response', r.json(), args['proxies'])
+def terrain_creator(*args,  **kwargs):
+    # global terrain
+    # print('terrain creator', args, kwargs)
+    # print('response', r.json(), args['proxies'])
     # terrain = request.json["terrain"]
-    # requests.get(microservices_urls['field_objects'] + '/terrain_objects')
+    requests.get(microservices_urls['field_objects'] + '/terrain_objects')
     return 'Ok'
 
 @app.route('/send_field_objects', methods=['POST'])
@@ -46,9 +51,12 @@ def field_object_creator():
     global terrain
     food = request.json["food"]
     obstacles = request.json["obstacles"]
+    print('obstacles', obstacles)
+    print('food', food)
     socketio.emit('load', {'terrain': terrain, 
                   'food': food, 
                   'obstacles': obstacles}, broadcast=True)
+    print('socket emit should have happened')
     return 'Ok'
 
     
@@ -65,10 +73,6 @@ def get_all_players_on_start():
         emit('requestPosition', {},  room=player)
         emit('spawn', {'id': player}, room=request.sid)
 
-# Socket Listeners 
-def print_response(r, **kwargs):
-    print(r.json, kwargs);
-
 @socketio.on('connect')
 def test_connect():
     global all_users, food, obstacles, microservices_urls, terrain
@@ -78,20 +82,18 @@ def test_connect():
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
-    requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
+    # requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
+    requests.get(microservices_urls["terrain"] + '/get_landscape')
     # requests.get(microservices_urls["terrain"] + '/get_landscape')
-    # emit('load', {'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
-    # emit('spawn', {'id': request.sid}, broadcast=True, include_self=False)
-    
 
 @socketio.on('move')
 def share_user_movement(json): 
-    # print('send user movement to other users' + str(json) + request.sid)
+    print('send user movement to other users' + str(json) + request.sid)
     emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
 def share_user_movement(json): 
-    # print('send user movement to other users' + str(json) + request.sid)
+    print('send user movement to other users' + str(json) + request.sid)
     emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
@@ -122,20 +124,18 @@ def disconnect():
     print('Client disconnected', request.sid)
     global all_users
     all_users.remove(request.sid)
-    # if len(all_users) == 0:
-    #     Timer(2.0, create_food).stop()
-    
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
 
 # error handling
 @socketio.on_error()    
 def error_handler(e):
-    print('error', e)
+    print('error', e, traceback.format_exc())
+
     pass
 
 @socketio.on_error_default
 def default_error_handler(e):
-    print('error', e)
+    print('error', e, traceback.format_exc())
     pass
 
 
