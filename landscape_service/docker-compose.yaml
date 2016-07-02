@@ -1,0 +1,7 @@
+server:
+  build: .
+  ports:
+    - "7000:7000"
+  volumes:
+   - .:/code
+

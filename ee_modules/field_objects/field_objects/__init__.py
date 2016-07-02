@@ -1,1 +1,0 @@
-from .create_food import random_coordinates
