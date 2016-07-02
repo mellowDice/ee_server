@@ -1,6 +1,0 @@
-setup.py
-generate_objects_on_terrain.egg-info/PKG-INFO
-generate_objects_on_terrain.egg-info/SOURCES.txt
-generate_objects_on_terrain.egg-info/dependency_links.txt
-generate_objects_on_terrain.egg-info/requires.txt
-generate_objects_on_terrain.egg-info/top_level.txt
