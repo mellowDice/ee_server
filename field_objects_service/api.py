@@ -1,8 +1,17 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, request
 import requests
+import eventlet.wsgi
+
 from create_terrain_objects import save_terrain, create_or_update_terrain_object, get_all_food, get_all_obstacles
 
 app = Flask(__name__)
+
+@app.route('/')
+def test_connect():
+    return "connected to objects service"
 
 @app.route('/terrain_objects', methods=['GET'])
 def get_terrain_objects():
@@ -25,4 +34,4 @@ def save_landscape():
 
 
 if __name__ == '__main__':
-    app.run(port=7001, debug=True)
+    eventlet.wsgi.server(eventlet.listen(('', 7001)), app, debug=True)
