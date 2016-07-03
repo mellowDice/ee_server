@@ -9,10 +9,9 @@ import traceback
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
 import requests
-# import json
-# import erequests
+
 # microservices_urls = {
-#   'socket':'http://107.170.232.95:6000',
+#   'socket':'http://localhost:9000',
 #   'terrain': 'http://159.203.226.234',
 #   'field_objects': 'http://192.241.215.101', 
 # }
