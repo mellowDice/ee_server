@@ -8,4 +8,4 @@ COPY requirements.txt /app
 
 EXPOSE 9000
 
-ENTRYPOINT ["python", "socket_microservice.py"]
+ENTRYPOINT ["python", "main.py"]
