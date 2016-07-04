@@ -10,19 +10,12 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, send, emit, join_room
 import requests
 
-# microservices_urls = {
-#   'socket':'http://localhost:9000',
-#   'terrain': 'http://localhost:7000',
-#   'field_objects': 'http://localhost:7001', 
-# }
-microservices_urls = {
-    'socket': 'http://104.236.155.241/',
-    'terrain': 'http://159.203.226.234:7000',
-    'field_objects': 'http://192.241.215.101:7001',
-}
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
+
+app.config.from_object('config.development')
+# Absolute path to the configuraiton file
+app.config.from_envvar('APP_CONFIG_FILE')
 
 socketio = SocketIO(app, async_mode='eventlet')
 
@@ -36,14 +29,14 @@ terrain = {}
 def index():
     return 'Welcome to Ethereal Epoch'
 
-@app.route('/send_terrain', methods=['POST'])
-def terrain_creator(*args,  **kwargs):
-    global terrain
-    print('terrain creator', request.json["terrain"])
-    # print('response', r.json(), args['proxies'])
-    terrain = request.json["terrain"]
-    requests.get(microservices_urls['field_objects'] + '/terrain_objects')
-    return 'Ok'
+# @app.route('/send_terrain', methods=['POST'])
+# def terrain_creator(*args,  **kwargs):
+#     global terrain
+#     # print('terrain creator', request.json["terrain"])
+#     # print('response', r.json(), args['proxies'])
+#     terrain = request.json["terrain"]
+#     requests.get(microservices_urls['field_objects'] + '/terrain_objects')
+#     return 'Ok'
 
 @app.route('/send_field_objects', methods=['POST'])
 def field_object_creator(): 
@@ -52,8 +45,10 @@ def field_object_creator():
     obstacles = request.json["obstacles"]
     print('obstacles', obstacles)
     print('food', food)
-    print('terrain', terrain)
-    socketio.emit('load', {'terrain': terrain, 
+    # print('terrain', terrain)
+    print('Terrain called globally', list(terrain[:1]))
+
+    socketio.emit('load', {'terrain': list(terrain), 
                   'food': food, 
                   'obstacles': obstacles}, broadcast=True)
     print('socket emit should have happened')
@@ -79,40 +74,45 @@ def test_connect():
     print('connect with socket info', request.sid)
     get_all_players_on_start()
     all_users.append(request.sid)
+    print(app.config)
     # get_terrain(250, 250)
     # Alert other users of new user and load data for game start
     # print(food, obstacles)
     # requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
-    requests.get(microservices_urls["terrain"] + '/get_landscape')
-    # requests.get(microservices_urls["terrain"] + '/get_landscape')
+    response = requests.get(app.config['TERRAIN_URL'] + '/get_landscape')
+    data = response.json()
+    terrain = data
+    print(data[0])
+    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
+    # requests.get(app.config['']["terrain"] + '/get_landscape')
 
 @socketio.on('move')
 def share_user_movement(json): 
     print('send user movement to other users' + str(json) + request.sid)
-    emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
+    # emit('playerMove', create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('look')
 def share_user_movement(json): 
     print('send user movement to other users' + str(json) + request.sid)
-    emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
+    # emit('otherPlayerLook',create_location_object(request.sid, json), broadcast=True, include_self=False)
 
 @socketio.on('playerPosition')
 def send_position_to_new_user(json):
     print('called this', json); 
     print('this should really only go to new user', request.sid); 
-    emit('updatePosition', create_location_object(request.sid, json), broadcast=True)
+    # emit('updatePosition', create_location_object(request.sid, json), broadcast=True)
 
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
-    data = requests.get(microservices_urls["field_objects"] + '/update_object?type=food&id='+json.id)
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json.id)
     food[json.id] = data
     emit('eaten', food[json.id], broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
-    data = requests.get(microservices_urls["field_objects"] + '/update_object?type=obstacle&id='+json.id)
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json.id)
     obstacles[json.id]['id'] = json.id
     emit('collided', obstacles[json.id], broadcast=True)
 
