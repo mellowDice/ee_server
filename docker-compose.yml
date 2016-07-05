@@ -2,9 +2,9 @@ version: '2'
 services:
 
   server:
-    build: .
+    build: ./app
     ports:
-      - "80:9000"
+      - "9000:9000"
     networks:
       - ethereal-network
 
