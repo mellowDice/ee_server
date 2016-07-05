@@ -4,10 +4,16 @@ machine:
 
 dependencies:
   override:
-    - pip install -r requirements.txt
+    - docker info
+    - docker build -t erinkav/test_ee_server .
 
 test:
   override:
-      - docker build -t test-build .
-      - docker run --name test_socket_service -d -p 80:9000 -e APP_CONFIG_FILE='config/production.py'  erinkav/test_ee_server
-      - python tests.py
+      - docker run --name socket_service -d -p 80:9000 -e APP_CONFIG_FILE='config/production.py' erinkav/test_ee_server; sleep 10
+      - curl --retry 10 --retry-delay 5 -v http://localhost/
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - docker push erinkav/test_ee_server
