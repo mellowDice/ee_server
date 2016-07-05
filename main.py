@@ -35,17 +35,17 @@ players = {}
 def index():
     return 'Welcome to Ethereal Epoch'
 
-@app.route('/send_terrain', methods=['POST'])
-def terrain_creator(*args,  **kwargs):
-    global terrain
-    # print('terrain creator', request.json["terrain"])
-    # print('response', r.json(), args['proxies'])
-    terrain = request.json["terrain"]
+# @app.route('/send_terrain', methods=['POST'])
+# def terrain_creator(*args,  **kwargs):
+#     global terrain
+#     # print('terrain creator', request.json["terrain"])
+#     # print('response', r.json(), args['proxies'])
+#     terrain = request.json["terrain"]
 
-    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
+#     requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
-    ### ADB: Send field objects to user
-    return 'Ok'
+#     ### ADB: Send field objects to user
+#     return 'Ok'
 
 @app.route('/send_field_objects', methods=['POST'])
 def field_object_creator(): 
@@ -55,12 +55,12 @@ def field_object_creator():
     print('obstacles', obstacles)
     print('food', food)
     # print('terrain', terrain)
-    print('Terrain called globally', list(terrain[:1]))
+    # print('Terrain called globally', list(terrain[:1]))
 
-    socketio.emit('load', {'terrain': list(terrain),
-                  'food': food, 
-                  'obstacles': obstacles}, broadcast=True)
-    print('socket emit should have happened')
+    socketio.emit('field_objects',
+                  {'food': food, 
+                   'obstacles': obstacles})
+    print('field_objects socket emit should have happened')
     return 'Ok'
 
     
@@ -95,10 +95,21 @@ def test_connect():
     # print(food, obstacles)
     # requests.get(microservices_urls["terrain"] + '/get_landscape', hooks=dict(response=terrain_creator))
     response = requests.get(app.config['TERRAIN_URL'] + '/get_landscape')
-    data = response.json()
-    terrain = data
-    print(data[0])
+    terrain = response.json()
+    socketio.emit('landscape', {'terrain': list(terrain)}, room=request.sid)
+    # socketio.emit('landscape', {'terrain': list(terrain),
+    #               'food': food, 
+    #               'obstacles': obstacles}, broadcast=True)
+    # terrain = data
+    # print(data[0])
     requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
+
+    mass = DEFAULT_PLAYER_MASS * random.random()
+    socketio.emit('initialize_main_player',
+                  {'id': request.sid, 
+                   'mass': mass}, room=request.sid)
+    players[request.sid] = {'mass': mass}
+    emit('spawn', {'id': request.sid, 'mass': mass}, broadcast=True, include_self=False)
     # requests.get(app.config['']["terrain"] + '/get_landscape')
 
     # # place items on the map (TODO: fix hardcoded height)
@@ -112,7 +123,6 @@ def test_connect():
     # mass = DEFAULT_PLAYER_MASS * random.random()
     # print("mass ",  mass)
     # emit('load', {'id': request.sid, 'mass': mass, 'terrain': terrain, 'food': food, 'obstacles': obstacles}, room=request.sid)
-    # emit('spawn', {'id': request.sid, 'mass': mass}, broadcast=True, include_self=False)
     # # emit('player_mass_update', {'id': request.sid, 'mass': mass})
     # players[request.sid] = {'mass': mass}
 
