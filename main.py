@@ -16,6 +16,7 @@ DEFAULT_PLAYER_MASS = 100
 DEFAULT_BOOST_COST = 2.5
 BOARD_WIDTH = 250
 BOARD_HEIGHT = 250
+MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -27,10 +28,11 @@ app.config.from_envvar('APP_CONFIG_FILE')
 socketio = SocketIO(app, async_mode='eventlet')
 
 user_count = 0
-currentZombieID = 0
+current_zombie_id = 0
 food = {}
 obstacles = {}
 players = {}
+clients = {}
 
 @app.route('/')
 def index():
@@ -47,19 +49,13 @@ def field_object_creator():
     return 'Ok'
 
 # Helper function to get all player information
-def get_all_players_on_start(): 
-    for id in players:
-        # emit('requestPosition', {},  room=id)
-        emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
 
 # On new client connection, create food, obstacles, landscape, and inialize player (on new client and others)
 @socketio.on('connect')
 def on_connect():
-    global currentZombieID
     print('NEW CONNECTION: ', request.sid)
+    print('players count: ' + str(len(players)))
 
-    # Request all player info to populate new player's screen
-    get_all_players_on_start()
 
     # Request for the terrain
     terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()
@@ -68,31 +64,52 @@ def on_connect():
     # Request for field-objects: Response dealt with above
     requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
+
+    # Spawn all other players into new player's screen (Must happen before initializing current player)
+    for id in players:
+        emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
+
     # Initialize current player
-    mass = DEFAULT_PLAYER_MASS * random.random()
-    players[request.sid] = {'mass': mass, 'zombies': []}
+    mass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
+    players[request.sid] = {'mass': mass}
+    clients[request.sid] = {'zombies': []}
+    playerPositionX = random.random() * (BOARD_WIDTH - 20) + 10
+    playerPositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
     socketio.emit('initialize_main_player',
-                  {'id': request.sid, 
-                   'mass': mass}, room=request.sid)
+                  {'id': request.sid,
+                   'mass': mass,
+                   'x': playerPositionX,
+                   'z': playerPositionZ}, room=request.sid)
     # Spawn new player on other clients
-    emit('spawn', {'id': request.sid, 'mass': mass}, broadcast=True, include_self=False)
+    emit('spawn', {'id': request.sid,
+                   'mass': mass}, broadcast=True, include_self=False)
+    print('players count: ' + str(len(players)))
+    add_more_zombies()
 
 
-    # Create a zombie player per user
-    zombieMass = DEFAULT_PLAYER_MASS * random.random()
-    currentZombieID += 1
-    zombiePositionX = random.random() * BOARD_WIDTH
-    zombiePositionZ = random.random() * BOARD_HEIGHT
-    zombieID = 'zombie' + str(currentZombieID)
-    socketio.emit('initialize_zombie_player',
-                  {'id': zombieID, 
-                   'mass': 20,
-                   'x': zombiePositionX,
-                   'z': zombiePositionZ}, room=request.sid)
-    players[zombieID] = {'mass': zombieMass}
-    players[request.sid]['zombies'].append(zombieID)
-    emit('spawn', {'id': zombieID, 'mass': mass}, broadcast=True, include_self=False)
-    print('finsihed spawning zombie ' + zombieID)
+def add_more_zombies():
+    global current_zombie_id
+    if len(clients) == 0:
+        return
+    # create up to 20 zombies
+    for i in range(max(0, MIN_PLAYERS_ZOMBIE_THRESHOLD - len(players))):
+        # Choose a random client to add the zombie to
+        client_id_to_add_zombies_to = random.choice(list(clients.keys()))
+        zombieMass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
+        current_zombie_id += 1
+        zombiePositionX = random.random() * (BOARD_WIDTH - 20) + 10
+        zombiePositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
+        zombieID = 'zombie' + str(current_zombie_id)
+        socketio.emit('initialize_zombie_player',
+                      {'id': zombieID, 
+                       'mass': zombieMass,
+                       'x': zombiePositionX,
+                       'z': zombiePositionZ}, room=client_id_to_add_zombies_to)
+        players[zombieID] = {'mass': zombieMass}
+        clients[client_id_to_add_zombies_to]['zombies'].append(zombieID)
+        emit('spawn', {'id': zombieID, 'mass': zombieMass}, broadcast=True, include_self=False)
+        print('finsihed spawning zombie ' + zombieID)
+        print('players count: ' + str(len(players)))
 
 
 # Updates all clients when one client changes direction
@@ -110,13 +127,18 @@ def share_user_boost_action(json):
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
 def relay_player_state(json):
-    emit('otherPlayerStateInfo', dict({'id': request.sid}, **json), broadcast=True, include_self=False)
+    emit('otherPlayerStateInfo', json, broadcast=True, include_self=False)
 
 # Message sent when a player is killed
 @socketio.on('kill_player')
 def kill(json): 
+    id = json['id']
     print('player killed', json)
-    emit('player_killed', {'id': json['id']}, broadcast=True, include_self=True)
+    emit('player_killed', {'id': id}, broadcast=True, include_self=True)
+    players.pop(id, None)
+    add_more_zombies()
+
+
     ## Create food
     ## Send Kill Player Signal
 
@@ -140,11 +162,15 @@ def regenerate_obstacle(json):
 @socketio.on('disconnect')
 def disconnect():
     print('Client disconnected', request.sid)
+    print('players count: ' + str(len(players)))
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render 
-    for zombie in players[request.sid].setdefault('zombies', []):
+    for zombie in clients[request.sid].setdefault('zombies', []):
         emit('onEndSpawn', {'id': zombie}, broadcast=True) # currently doens't de-render 
-        del players[zombie]
-    del players[request.sid]
+        players.pop(zombie, None)
+    players.pop(request.sid, None)
+    clients.pop(request.sid, None)
+    add_more_zombies()
+    print('players count: ' + str(len(players)))
 
 # error handling
 @socketio.on_error()    
