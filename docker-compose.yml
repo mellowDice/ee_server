@@ -8,13 +8,6 @@ services:
     networks:
       - ethereal-network
 
-  mongodb:
-    image: mongo
-    ports:
-      - "27017:27017"
-    networks:
-      - ethereal-network
-
   redis:
     image: redis
     ports:

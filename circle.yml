@@ -1,0 +1,13 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  override:
+    - pip install -r requirements.txt
+
+test:
+  override:
+      - docker build -t test-build .
+      - docker run --name test_socket_service -d -p 80:9000 -e APP_CONFIG_FILE='config/production.py'  erinkav/test_ee_server
+      - python tests.py
