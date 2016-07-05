@@ -70,7 +70,6 @@ def on_connect():
     socketio.emit('initialize_main_player',
                   {'id': request.sid, 
                    'mass': mass}, room=request.sid)
-
     # Spawn new player on other clients
     emit('spawn', {'id': request.sid, 'mass': mass}, broadcast=True, include_self=False)
 

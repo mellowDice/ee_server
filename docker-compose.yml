@@ -2,16 +2,9 @@ version: '2'
 services:
 
   server:
-    build: .
+    build: ./app
     ports:
       - "9000:9000"
-    networks:
-      - ethereal-network
-
-  mongodb:
-    image: mongo
-    ports:
-      - "27017:27017"
     networks:
       - ethereal-network
 

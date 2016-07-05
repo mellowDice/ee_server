@@ -4,6 +4,9 @@ RUN mkdir app
 ADD . /app
 WORKDIR /app
 
+RUN export APP_CONFIG_FILE='./config/production.py'
+
+
 COPY requirements.txt /app
 
 EXPOSE 9000
