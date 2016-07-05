@@ -14,6 +14,8 @@ import random
 
 DEFAULT_PLAYER_MASS = 100
 DEFAULT_BOOST_COST = 2.5
+BOARD_WIDTH = 250
+BOARD_HEIGHT = 250
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -25,6 +27,7 @@ app.config.from_envvar('APP_CONFIG_FILE')
 socketio = SocketIO(app, async_mode='eventlet')
 
 user_count = 0
+currentZombieID = 0
 food = {}
 obstacles = {}
 players = {}
@@ -46,12 +49,13 @@ def field_object_creator():
 # Helper function to get all player information
 def get_all_players_on_start(): 
     for id in players:
-        emit('requestPosition', {},  room=id)
+        # emit('requestPosition', {},  room=id)
         emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
 
 # On new client connection, create food, obstacles, landscape, and inialize player (on new client and others)
 @socketio.on('connect')
 def on_connect():
+    global currentZombieID
     print('NEW CONNECTION: ', request.sid)
 
     # Request all player info to populate new player's screen
@@ -66,12 +70,30 @@ def on_connect():
 
     # Initialize current player
     mass = DEFAULT_PLAYER_MASS * random.random()
-    players[request.sid] = {'mass': mass}
+    players[request.sid] = {'mass': mass, 'zombies': []}
     socketio.emit('initialize_main_player',
                   {'id': request.sid, 
                    'mass': mass}, room=request.sid)
     # Spawn new player on other clients
     emit('spawn', {'id': request.sid, 'mass': mass}, broadcast=True, include_self=False)
+
+
+    # Create a zombie player per user
+    zombieMass = DEFAULT_PLAYER_MASS * random.random()
+    currentZombieID += 1
+    zombiePositionX = random.random() * BOARD_WIDTH
+    zombiePositionZ = random.random() * BOARD_HEIGHT
+    zombieID = 'zombie' + str(currentZombieID)
+    socketio.emit('initialize_zombie_player',
+                  {'id': zombieID, 
+                   'mass': 20,
+                   'x': zombiePositionX,
+                   'z': zombiePositionZ}, room=request.sid)
+    players[zombieID] = {'mass': zombieMass}
+    players[request.sid]['zombies'].append(zombieID)
+    emit('spawn', {'id': zombieID, 'mass': mass}, broadcast=True, include_self=False)
+    print('finsihed spawning zombie ' + zombieID)
+
 
 # Updates all clients when one client changes direction
 @socketio.on('look')
@@ -118,8 +140,11 @@ def regenerate_obstacle(json):
 @socketio.on('disconnect')
 def disconnect():
     print('Client disconnected', request.sid)
-    emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render user
-    del players[request.sid];
+    emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render 
+    for zombie in players[request.sid].setdefault('zombies', []):
+        emit('onEndSpawn', {'id': zombie}, broadcast=True) # currently doens't de-render 
+        del players[zombie]
+    del players[request.sid]
 
 # error handling
 @socketio.on_error()    
