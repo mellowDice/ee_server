@@ -18,4 +18,5 @@ deployment:
   hub:
     branch: master
     commands:
-      - docker push erinkav/test_ee_server
+      - curl -H "Content-Type: application/json" --data '{"build": true}' -X POST https://registry.hub.docker.com/u/erinkav/ee_server/trigger/6ec177e8-0fd2-42df-a0c5-83b9533e6a7a/
+      
