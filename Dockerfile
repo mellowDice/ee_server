@@ -3,7 +3,7 @@ FROM python:3.5.1-onbuild
 RUN mkdir app
 ADD . /app
 WORKDIR /app
-RUN chmod +x /path/to/yourscript.sh
+RUN chmod +x ./start.sh
 
 RUN ./start.sh
 
