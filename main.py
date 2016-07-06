@@ -58,7 +58,7 @@ def on_connect():
 
 
     # Request for the terrain
-    terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()
+    terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()['results']
     socketio.emit('landscape', {'terrain': list(terrain)}, room=request.sid)
 
     # Request for field-objects: Response dealt with above
@@ -68,23 +68,28 @@ def on_connect():
     # Spawn all other players into new player's screen (Must happen before initializing current player)
     for id in players:
         emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
+    clients[request.sid] = {'zombies': []}
+    print('players count: ' + str(len(players)))
+    add_more_zombies()
 
+
+def initialize_main_player(id):
     # Initialize current player
     mass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
-    players[request.sid] = {'mass': mass}
-    clients[request.sid] = {'zombies': []}
+    players[id] = {'mass': mass}
+    # clients[request.sid] = {'zombies': []}
     playerPositionX = random.random() * (BOARD_WIDTH - 20) + 10
     playerPositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
     socketio.emit('initialize_main_player',
-                  {'id': request.sid,
+                  {'id': id,
                    'mass': mass,
                    'x': playerPositionX,
-                   'z': playerPositionZ}, room=request.sid)
+                   'z': playerPositionZ}, room=id)
     # Spawn new player on other clients
-    emit('spawn', {'id': request.sid,
+    emit('spawn', {'id': id,
                    'mass': mass}, broadcast=True, include_self=False)
-    print('players count: ' + str(len(players)))
-    add_more_zombies()
+
+
 
 
 def add_more_zombies():
@@ -138,6 +143,9 @@ def kill(json):
     players.pop(id, None)
     add_more_zombies()
 
+@socketio.on('initialize_main')
+def initialize_main(json):
+    initialize_main_player(request.sid)
 
     ## Create food
     ## Send Kill Player Signal
