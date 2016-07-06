@@ -21,8 +21,7 @@ MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 
-app.config.from_object('config.development')
-# Absolute path to the configuraiton file
+# Absolute path to the configuration file
 app.config.from_envvar('APP_CONFIG_FILE')
 
 socketio = SocketIO(app, async_mode='eventlet')
@@ -34,57 +33,68 @@ obstacles = {}
 players = {}
 clients = {}
 
+terrain = None
+
 @app.route('/')
 def index():
     return 'Welcome to Ethereal Epoch'
 
 # Response from field-objects service
-@app.route('/send_field_objects', methods=['POST'])
-def field_object_creator(): 
-    food = request.json["food"]
-    obstacles = request.json["obstacles"]
-    socketio.emit('field_objects',
-                  {'food': food, 
-                   'obstacles': obstacles})
-    return 'Ok'
+# @app.route('/send_field_objects', methods=['POST'])
+# def field_object_creator(): 
+#     food = request.json["food"]
+#     obstacles = request.json["obstacles"]
+#     socketio.emit('field_objects',
+#                   {'food': food, 
+#                    'obstacles': obstacles})
+#     return 'Ok'
 
 # Helper function to get all player information
-
+def get_all_players_on_start(): 
+    players = requests.get(app.config['DB_URL'] + '/users/get_all')
+    for player in players: 
+        clients[player['id']]
+        emit('requestPosition', {},  room=player['id'])
+        emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
 # On new client connection, create food, obstacles, landscape, and inialize player (on new client and others)
 @socketio.on('connect')
 def on_connect():
+    global terrain
     print('NEW CONNECTION: ', request.sid)
-    print('players count: ' + str(len(players)))
-
 
     # Request for the terrain
-    terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()
+    if terrain == None:
+        terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape')
+    # Note to self: make sure this returns in time on the first request
+    print('Terrain should exist before it emits', terrain)
     socketio.emit('landscape', {'terrain': list(terrain)}, room=request.sid)
 
     # Request for field-objects: Response dealt with above
     requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
-
     # Spawn all other players into new player's screen (Must happen before initializing current player)
-    for id in players:
-        emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
+    players = requests.get(app.config['DB_URL'] + '/users/get_all')
+    print('players should exist', players)
+    # for player in players:
+    #     emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
 
     # Initialize current player
-    mass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
-    players[request.sid] = {'mass': mass}
-    clients[request.sid] = {'zombies': []}
-    playerPositionX = random.random() * (BOARD_WIDTH - 20) + 10
-    playerPositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
-    socketio.emit('initialize_main_player',
-                  {'id': request.sid,
-                   'mass': mass,
-                   'x': playerPositionX,
-                   'z': playerPositionZ}, room=request.sid)
-    # Spawn new player on other clients
-    emit('spawn', {'id': request.sid,
-                   'mass': mass}, broadcast=True, include_self=False)
-    print('players count: ' + str(len(players)))
-    add_more_zombies()
+    # mass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
+    # # players[request.sid] = {'mass': mass}
+    # # clients[request.sid] = {'zombies': []}
+    # playerPositionX = random.random() * (BOARD_WIDTH - 20) + 10
+    # playerPositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
+    # requests.post(app.config['DB_URL'] + '/users/add', json={'mass': mass, 'id': request.sid, 'zombies': None})
+    # socketio.emit('initialize_main_player',
+    #               {'id': request.sid,
+    #                'mass': mass,
+    #                'x': playerPositionX,
+    #                'z': playerPositionZ}, room=request.sid)
+    # # Spawn new player on other clients
+    # emit('spawn', {'id': request.sid,
+    #                'mass': mass}, broadcast=True, include_self=False)
+    # # print('players count: ' + str(len(players)))
+    # add_more_zombies()
 
 
 def add_more_zombies():
@@ -121,8 +131,9 @@ def share_user_look_direction(json):
 # Updates all clients and reduces player mass when one client uses boost
 @socketio.on('boost')
 def share_user_boost_action(json):
-    emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False);
-    emit('playerMassUpdate', {'id': request.sid, 'mass': players[request.sid]['mass'] - DEFAULT_BOOST_COST})
+    emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False)
+    player = requests.get(app.config['DB_URL'] + '/users/' + request.sid)
+    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] - DEFAULT_BOOST_COST})
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
@@ -141,20 +152,19 @@ def kill(json):
 
     ## Create food
     ## Send Kill Player Signal
+    requests.post(app.config['DB_URL'] + '/users/end', json={'id': json['id']})
 
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json.id)
-    food[json.id] = data
-    emit('eaten', food[json.id], broadcast=True)
+    emit('eaten', data, broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json.id)
-    obstacles[json.id]['id'] = json.id
-    emit('collided', obstacles[json.id], broadcast=True)
+    emit('collided', data, broadcast=True)
 
 
 # disconnect 
@@ -176,7 +186,6 @@ def disconnect():
 @socketio.on_error()    
 def error_handler(e):
     print('error', e, traceback.format_exc())
-
     pass
 
 @socketio.on_error_default
