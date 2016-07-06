@@ -4,7 +4,7 @@ RUN mkdir app
 ADD . /app
 WORKDIR /app
 
-RUN export APP_CONFIG_FILE='./config/production.py'
+ARG APP_CONFIG_FILE='./app/config/production.py'
 
 
 COPY requirements.txt /app
