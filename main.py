@@ -11,6 +11,7 @@ from flask_socketio import SocketIO, send, emit, join_room
 import requests
 import numpy as np
 import random
+import datetime
 
 DEFAULT_PLAYER_MASS = 100
 DEFAULT_BOOST_COST = 2.5
@@ -64,13 +65,19 @@ def on_connect():
     print('NEW CONNECTION: ', request.sid)
 
     # Request for the terrain
-    print('terrain', terrain)
     if terrain == None:
-        terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()['result']
+        seed = datetime.datetime.now()
+        seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
+        terrain = requests.get(app.config['TERRAIN_URL'] +
+           '/get_landscape?width=' + str(BOARD_WIDTH) +
+           '&height=' + str(BOARD_HEIGHT) +
+           '&seed=' + str(seed)).json()
+    # print('terrain', terrain)
+    
     # Note to self: make sure this returns in time on the first request
     socketio.emit('load', {'terrain': list(terrain)}, room=request.sid)
     # Request for field-objects: Response dealt with above
-    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
+    # requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
     # Spawn all other players into new player's screen (Must happen before initializing current player)
 
@@ -146,7 +153,7 @@ def share_user_boost_action(json):
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
 def relay_player_state(json):
-    print('relay player state', json)
+    # print('relay player state', json)
     emit('otherPlayerStateInfo', json, broadcast=True, include_self=False)
 
 # Message sent when a player is killed
