@@ -27,12 +27,18 @@ class TestSockets(unittest.TestCase):
       self.assertEqual(received[0]['args'], 'connected')
       client.disconnect()
 
-  def test_disconnect(self):
-      global disconnected
-      disconnected = None
-      client = socketio.test_client(app)
-      client.disconnect()
-      self.assertEqual(disconnected, '/')
+  def test_add_player(self):
+      test_player = {'id': 1, 'mass': 1, 'zombies': None}
+      requests.post(app.config['DB_URL'] + '/users/add')
+      received = requests.get(app.config['DB_URL'] + '/users/' + str(test_player['id']))
+      print(received.json())
+      self.assertEqual(received.json(), test_player)
+  # def test_disconnect(self):
+  #     global disconnected
+  #     disconnected = None
+  #     client = socketio.test_client(app)
+  #     client.disconnect()
+  #     self.assertEqual(disconnected, '/')
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,6 +11,7 @@ from flask_socketio import SocketIO, send, emit, join_room
 import requests
 import numpy as np
 import random
+import datetime
 
 DEFAULT_PLAYER_MASS = 100
 DEFAULT_BOOST_COST = 2.5
@@ -21,8 +22,7 @@ MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
 
-app.config.from_object('config.development')
-# Absolute path to the configuraiton file
+# Absolute path to the configuration file
 app.config.from_envvar('APP_CONFIG_FILE')
 
 socketio = SocketIO(app, async_mode='eventlet')
@@ -33,6 +33,8 @@ food = {}
 obstacles = {}
 players = {}
 clients = {}
+
+terrain = None
 
 @app.route('/')
 def index():
@@ -49,47 +51,59 @@ def field_object_creator():
     return 'Ok'
 
 # Helper function to get all player information
+def get_all_players_on_start(): 
+    players = requests.get(app.config['DB_URL'] + '/users/get_all')
+    for player in players: 
+        clients[player['id']]
+        emit('requestPosition', {},  room=player['id'])
+        emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
 
 # On new client connection, create food, obstacles, landscape, and inialize player (on new client and others)
 @socketio.on('connect')
 def on_connect():
+    global terrain, players, clients
     print('NEW CONNECTION: ', request.sid)
-    print('players count: ' + str(len(players)))
-
 
     # Request for the terrain
-    terrain = requests.get(app.config['TERRAIN_URL'] + '/get_landscape').json()['results']
+    if terrain == None:
+        seed = datetime.datetime.now()
+        seed = seed.hour + 24 * (seed.day + 31 * seed.month) * 4352 + 32454354
+        terrain = requests.get(app.config['TERRAIN_URL'] +
+           '/get_landscape?width=' + str(BOARD_WIDTH) +
+           '&height=' + str(BOARD_HEIGHT) +
+           '&seed=' + str(seed)).json()
+    # print('terrain', terrain)
+    
+    # Note to self: make sure this returns in time on the first request
     socketio.emit('landscape', {'terrain': list(terrain)}, room=request.sid)
-
     # Request for field-objects: Response dealt with above
-    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
-
+    # requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
     # Spawn all other players into new player's screen (Must happen before initializing current player)
-    for id in players:
-        emit('spawn', {'id': id, 'mass': players[id]['mass']}, room=request.sid)
+    playersList = requests.get(app.config['DB_URL'] + '/users/get_all').json()
+    if playersList != None or playersList['message'] != None: 
+        for player in playersList:
+            print(player)
+            players[player['id']] = player
+            emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
+    print('players should exist', players)
+
+    # players[request.sid] = {'mass': mass}
     clients[request.sid] = {'zombies': []}
-    print('players count: ' + str(len(players)))
     add_more_zombies()
 
-
 def initialize_main_player(id):
-    # Initialize current player
-    mass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
-    players[id] = {'mass': mass}
-    # clients[request.sid] = {'zombies': []}
     playerPositionX = random.random() * (BOARD_WIDTH - 20) + 10
     playerPositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
     socketio.emit('initialize_main_player',
                   {'id': id,
-                   'mass': mass,
+                   'mass': DEFAULT_PLAYER_MASS,
                    'x': playerPositionX,
                    'z': playerPositionZ}, room=id)
     # Spawn new player on other clients
     emit('spawn', {'id': id,
-                   'mass': mass}, broadcast=True, include_self=False)
-
-
+                   'mass': DEFAULT_PLAYER_MASS}, broadcast=True, include_self=False)
+    # print('players count: ' + str(len(players)))
 
 
 def add_more_zombies():
@@ -104,16 +118,21 @@ def add_more_zombies():
         current_zombie_id += 1
         zombiePositionX = random.random() * (BOARD_WIDTH - 20) + 10
         zombiePositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
-        zombieID = 'zombie' + str(current_zombie_id)
+        zombieID = current_zombie_id
         socketio.emit('initialize_zombie_player',
                       {'id': zombieID, 
                        'mass': zombieMass,
                        'x': zombiePositionX,
                        'z': zombiePositionZ}, room=client_id_to_add_zombies_to)
-        players[zombieID] = {'mass': zombieMass}
+        players[zombieID]  = {'id': zombieID, 'mass': zombieMass}
         clients[client_id_to_add_zombies_to]['zombies'].append(zombieID)
-        emit('spawn', {'id': zombieID, 'mass': zombieMass}, broadcast=True, include_self=False)
-        print('finsihed spawning zombie ' + zombieID)
+        # Store zombie on assigned player 
+        requests.post(app.config['DB_URL'] + '/users/add', json={'mass': DEFAULT_PLAYER_MASS, 'id': client_id_to_add_zombies_to, 'zombies': zombieID})
+        # Store zombie as player
+        requests.post(app.config['DB_URL'] + '/users/add', json={'mass': zombieMass, 'id': zombieID, 'zombies': None })
+        
+        emit('spawn', {'id': zombieID, 'mass': zombieMass}, broadcast=True, include_self=False) 
+        print('finsihed spawning zombie ',  zombieID)
         print('players count: ' + str(len(players)))
 
 
@@ -126,12 +145,15 @@ def share_user_look_direction(json):
 # Updates all clients and reduces player mass when one client uses boost
 @socketio.on('boost')
 def share_user_boost_action(json):
-    emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False);
-    emit('playerMassUpdate', {'id': request.sid, 'mass': players[request.sid]['mass'] - DEFAULT_BOOST_COST})
+    emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False)
+    player = requests.get(app.config['DB_URL'] + '/users/' + request.sid)
+    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] - DEFAULT_BOOST_COST})
+    requests.post(app.config['DB_URL'] + '/users/add', json={'id': request.sid, 'mass': player['mass'] - DEFAULT_BOOST_COST })
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
 def relay_player_state(json):
+    # print('relay player state', json)
     emit('otherPlayerStateInfo', json, broadcast=True, include_self=False)
 
 # Message sent when a player is killed
@@ -141,6 +163,7 @@ def kill(json):
     print('player killed', json)
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
     players.pop(id, None)
+    requests.get(app.config['DB_URL'] + '/users/delete' + id)
     add_more_zombies()
 
 @socketio.on('initialize_main')
@@ -154,15 +177,13 @@ def initialize_main(json):
 def regenerate_food(json):
     print('food eaten', json)
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json.id)
-    food[json.id] = data
-    emit('eaten', food[json.id], broadcast=True)
+    emit('eaten', data, broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json.id)
-    obstacles[json.id]['id'] = json.id
-    emit('collided', obstacles[json.id], broadcast=True)
+    emit('collided', data, broadcast=True)
 
 
 # disconnect 
@@ -179,12 +200,10 @@ def disconnect():
     clients.pop(request.sid, None)
     add_more_zombies()
     print('players count: ' + str(len(players)))
-
 # error handling
 @socketio.on_error()    
 def error_handler(e):
     print('error', e, traceback.format_exc())
-
     pass
 
 @socketio.on_error_default
