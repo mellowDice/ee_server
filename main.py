@@ -15,9 +15,11 @@ import datetime
 
 DEFAULT_PLAYER_MASS = 10
 DEFAULT_BOOST_COST = 0.1
+MINIMUM_BOOST_COST = 2.4
 BOARD_WIDTH = 250
 BOARD_HEIGHT = 250
 MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
+DEFAULT_FOOD_MASS = 1
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret'
@@ -35,6 +37,10 @@ players = {}
 users = {}
 
 terrain = None
+
+# First, make sure we are working with a clean redis store
+requests.get(app.config['DB_URL'] + '/flush', json={})
+
 
 @app.route('/')
 def index():
@@ -112,12 +118,12 @@ def add_more_zombies():
         # Choose a random client to add the zombie to
         user_id = random.choice(users)['id']
         print('user id', user_id)
-        zombieMass = DEFAULT_PLAYER_MASS * (random.random() * 0.9 + 0.1)
+        zombieMass = DEFAULT_PLAYER_MASS - 2 -(1 + 2 * random.random())
         current_zombie_id += 1
         zombiePositionX = random.random() * (BOARD_WIDTH - 20) + 10
         zombiePositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
         print('zombie positions', str(zombiePositionX), str(zombiePositionZ))
-        zombieID = current_zombie_id
+        zombieID = 'zombie_' + str(current_zombie_id)
         socketio.emit('initialize_zombie_player',
                       {'id': zombieID, 
                        'mass': zombieMass,
@@ -142,10 +148,13 @@ def share_user_look_direction(json):
 # Updates all users and reduces player mass when one client uses boost
 @socketio.on('boost')
 def share_user_boost_action(json):
-    emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False)
-    player = requests.get(app.config['DB_URL'] + '/players/' + request.sid).json()[0]
-    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST)}, broadcast=True, include_self=False)
-    requests.post(app.config['DB_URL'] + '/players/add', json={'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST) })
+    player_id = json['player_id']
+    emit('otherPlayerBoost', {'id': player_id}, broadcast=True, include_self=False)
+    player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()
+    player_mass = player[0]['mass']
+    new_mass = min(player_mass * (1 - DEFAULT_BOOST_COST), player_mass - MINIMUM_BOOST_COST)
+    emit('playerMassUpdate', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
+    requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
@@ -160,7 +169,6 @@ def kill(json):
     print('player killed', json)
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
     requests.get(app.config['DB_URL'] + '/players/delete/' + id)
-    print('does this happen? ')
     add_more_zombies()
 
 @socketio.on('initialize_main')
@@ -171,16 +179,30 @@ def initialize_main(json):
     ## Send Kill Player Signal
 
 @socketio.on('eat')
-def regenerate_food(json):
+def on_eat(json):
+    food_id = json['food_id']
+    player_id = json['player_id']
     print('food eaten', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json.id).json()
-    emit('eaten', data, broadcast=True)
+
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+food_id).json()
+
+    print('data', data)
+    emit('eaten', {'food': [data] }, broadcast=True)
+
+    print(player_id, food_id)
+    player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
+    print(player['mass'], DEFAULT_FOOD_MASS)
+    new_mass = float(player['mass']) + DEFAULT_FOOD_MASS
+    requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
+    emit('playerMassUpdate', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
+
+
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacles&id='+json.id).json()
-    emit('collided', data, broadcast=True)
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json['id']).json()
+    emit('collided', { 'obstacles': [data] }, broadcast=True)
 
 
 # disconnect 
