@@ -161,7 +161,6 @@ def kill(json):
     print('player killed', json)
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
     requests.get(app.config['DB_URL'] + '/players/delete/' + id)
-    print('does this happen? ')
     add_more_zombies()
 
 @socketio.on('initialize_main')
@@ -174,13 +173,15 @@ def initialize_main(json):
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json.id).json()
+    print('food', json['id'])
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json['id']).json()
+    print('data', data)
     emit('eaten', data, broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacles&id='+json.id).json()
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json['id']).json()
     emit('collided', data, broadcast=True)
 
 
