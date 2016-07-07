@@ -45,19 +45,13 @@ def index():
 def field_object_creator(): 
     food = request.json["food"]
     obstacles = request.json["obstacles"]
+    print('send field objcets', food, obstacles)
     socketio.emit('field_objects',
                   {'food': food, 
                    'obstacles': obstacles})
     return 'Ok'
 
-# Helper function to get all player information
-def get_all_players_on_start(): 
-    players = requests.get(app.config['DB_URL'] + '/users/get_all').json()
-    for player in players: 
-        
-        users[player['id']]
-        emit('requestPosition', {},  room=player['id'])
-        emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
+
 
 # On new client connection, create food, obstacles, landscape, and inialize player (on new client and others)
 @socketio.on('connect')
@@ -76,7 +70,7 @@ def on_connect():
     
     socketio.emit('landscape', {'terrain': terrain}, room=request.sid)
     # Request for field-objects: Response dealt with above
-    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
+    requests.get(app.config['OBJECTS_URL'] + '/terrain_objects?width=' + str(BOARD_WIDTH) + '&height=' + str(BOARD_HEIGHT))
 
     # Spawn all other players into new player's screen (Must happen before initializing current player)
     playersList = requests.get(app.config['DB_URL'] + '/players/get_all').json()
@@ -85,7 +79,6 @@ def on_connect():
             print(player)
             players[player['id']] = player
             emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
-    print('players should exist', players)
     
     requests.post(app.config["DB_URL"] + '/users/add', json={'id': request.sid, 'zombies': []})
     requests.post(app.config['DB_URL'] + '/players/add', json={'mass': DEFAULT_PLAYER_MASS, 'id': request.sid})
@@ -187,7 +180,7 @@ def regenerate_food(json):
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json.id).json()
+    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacles&id='+json.id).json()
     emit('collided', data, broadcast=True)
 
 
