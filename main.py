@@ -71,11 +71,11 @@ def on_connect():
         terrain = requests.get(app.config['TERRAIN_URL'] +
            '/get_landscape?width=' + str(BOARD_WIDTH) +
            '&height=' + str(BOARD_HEIGHT) +
-           '&seed=' + str(seed)).json()
-    # print('terrain', terrain)
+           '&seed=' + str(seed)).json()['result']
+    print('terrain', terrain)
     
     # Note to self: make sure this returns in time on the first request
-    socketio.emit('landscape', {'terrain': list(terrain)}, room=request.sid)
+    socketio.emit('landscape', {'terrain': terrain}, room=request.sid)
     # Request for field-objects: Response dealt with above
     # requests.get(app.config['OBJECTS_URL'] + '/terrain_objects')
 
