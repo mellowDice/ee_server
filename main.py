@@ -13,8 +13,8 @@ import numpy as np
 import random
 import datetime
 
-DEFAULT_PLAYER_MASS = 100
-DEFAULT_BOOST_COST = 2.5
+DEFAULT_PLAYER_MASS = 10
+DEFAULT_BOOST_COST = 0.1
 BOARD_WIDTH = 250
 BOARD_HEIGHT = 250
 MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
@@ -145,8 +145,8 @@ def share_user_look_direction(json):
 def share_user_boost_action(json):
     emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False)
     player = requests.get(app.config['DB_URL'] + '/players/' + request.sid).json()
-    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] - DEFAULT_BOOST_COST})
-    requests.post(app.config['DB_URL'] + '/players/add', json={'id': request.sid, 'mass': player['mass'] - DEFAULT_BOOST_COST })
+    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST)})
+    requests.post(app.config['DB_URL'] + '/players/add', json={'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST) })
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
