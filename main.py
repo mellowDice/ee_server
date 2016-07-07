@@ -130,8 +130,7 @@ def add_more_zombies():
         requests.post(app.config["DB_URL"] + '/players/add', json = {'id': zombieID, 'mass': zombieMass})
         
         emit('spawn', {'id': zombieID, 'mass': zombieMass}, broadcast=True, include_self=False) 
-        print('finsihed spawning zombie ',  zombieID)
-        print('players count: ' + str(len(players)))
+
 
 
 # Updates all users when one client changes direction
@@ -144,8 +143,8 @@ def share_user_look_direction(json):
 @socketio.on('boost')
 def share_user_boost_action(json):
     emit('otherPlayerBoost', {'id': request.sid}, broadcast=True, include_self=False)
-    player = requests.get(app.config['DB_URL'] + '/players/' + request.sid).json()
-    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST)})
+    player = requests.get(app.config['DB_URL'] + '/players/' + request.sid).json()[0]
+    emit('playerMassUpdate', {'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST)}, broadcast=True, include_self=False)
     requests.post(app.config['DB_URL'] + '/players/add', json={'id': request.sid, 'mass': player['mass'] * (1 - DEFAULT_BOOST_COST) })
 
 # Updates other players on player state in regular intervals
