@@ -51,7 +51,6 @@ def index():
 def field_object_creator(): 
     food = request.json["food"]
     obstacles = request.json["obstacles"]
-    print('send field objcets', food, obstacles)
     socketio.emit('field_objects',
                   {'food': food, 
                    'obstacles': obstacles})
@@ -82,7 +81,6 @@ def on_connect():
     playersList = requests.get(app.config['DB_URL'] + '/players/get_all').json()
     if playersList != None and len(playersList) > 0: 
         for player in playersList:
-            print(player)
             players[player['id']] = player
             emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
     
@@ -110,14 +108,12 @@ def add_more_zombies():
     users = requests.get(app.config["DB_URL"] + '/users/get_all').json()
     players = requests.get(app.config["DB_URL"] + '/players/get_all').json()
     if len(users) <= 0:
-        print('returning without adding')
         return
     # create up to 20 zombies
     print('length of players' , len(players))
     for i in range(max(0, MIN_PLAYERS_ZOMBIE_THRESHOLD - len(players))):
         # Choose a random client to add the zombie to
         user_id = random.choice(users)['id']
-        print('user id', user_id)
         zombieMass = DEFAULT_PLAYER_MASS - 2 -(1 + 2 * random.random())
         current_zombie_id += 1
         zombiePositionX = random.random() * (BOARD_WIDTH - 20) + 10
@@ -149,24 +145,24 @@ def share_user_look_direction(json):
 @socketio.on('boost')
 def share_user_boost_action(json):
     player_id = json['player_id']
+    print('boost', player_id) 
     emit('otherPlayerBoost', {'id': player_id}, broadcast=True, include_self=False)
-    player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()
-    player_mass = player[0]['mass']
+    player = requests.get(app.config['DB_URL'] + '/players/' + str(player_id)).json()
+    player_mass = float(player[0]['mass'])
     new_mass = min(player_mass * (1 - DEFAULT_BOOST_COST), player_mass - MINIMUM_BOOST_COST)
-    emit('playerMassUpdate', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
+    emit('player_mass_update', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
     requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
+    print('boost mass change', player_mass, new_mass)
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
 def relay_player_state(json):
-    # print('relay player state', json)
     emit('otherPlayerStateInfo', json, broadcast=True, include_self=False)
 
 # Message sent when a player is killed
 @socketio.on('kill_player')
 def kill(json): 
     id = json['id']
-    print('player killed', json)
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
     requests.get(app.config['DB_URL'] + '/players/delete/' + id)
     add_more_zombies()
@@ -182,19 +178,13 @@ def initialize_main(json):
 def on_eat(json):
     food_id = json['food_id']
     player_id = json['player_id']
-    print('food eaten', json)
-
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+food_id).json()
-
-    print('data', data)
+    print('eat data', data)
     emit('eaten', {'food': [data] }, broadcast=True)
-
-    print(player_id, food_id)
     player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
-    print(player['mass'], DEFAULT_FOOD_MASS)
     new_mass = float(player['mass']) + DEFAULT_FOOD_MASS
     requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
-    emit('playerMassUpdate', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
+    emit('player_mass_update', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
 
 
 
@@ -210,14 +200,10 @@ def regenerate_obstacle(json):
 @socketio.on('disconnect')
 def disconnect():
     print('Client disconnected', request.sid)
-    print('players count: ' + str(len(players)))
     emit('onEndSpawn', {'id': request.sid}, broadcast=True) # currently doens't de-render 
     user = requests.get(app.config['DB_URL'] + '/users/' + request.sid).json()[0]
-    print(user)
     zombies = user['zombies'].split()
-    print('disconnect', user, zombies)
     for zombie_id in zombies:
-        print('zombie id', zombie_id)
         emit('onEndSpawn', {'id': zombie_id}, broadcast=True) # currently doens't de-render 
         requests.get(app.config['DB_URL'] + '/players/delete/' + zombie_id)
     requests.get(app.config['DB_URL'] + '/users/delete/' + request.sid)
