@@ -173,16 +173,15 @@ def initialize_main(json):
 @socketio.on('eat')
 def regenerate_food(json):
     print('food eaten', json)
-    print('food', json['id'])
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+json['id']).json()
     print('data', data)
-    emit('eaten', data, broadcast=True)
+    emit('eaten', {'food': [data] }, broadcast=True)
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
     print('obstacle hit', json)
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json['id']).json()
-    emit('collided', data, broadcast=True)
+    emit('collided', { 'obstacles': [data] }, broadcast=True)
 
 
 # disconnect 
