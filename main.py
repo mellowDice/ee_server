@@ -37,7 +37,7 @@ players = {}
 users = {}
 
 terrain = None
-
+maxFood = 100
 # First, make sure we are working with a clean redis store
 requests.get(app.config['DB_URL'] + '/flush', json={})
 
@@ -165,6 +165,11 @@ def kill(json):
     id = json['id']
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
     requests.get(app.config['DB_URL'] + '/players/delete/' + id)
+    # return 10 food items with id > 100
+    # Range should be from 101 to 150
+    data = requests.get(app.config['OBJECTS_URL'] + '/get_pi_food?x=' + str(json['x_position']) + '&z=' + str(json['z_position'])).json()
+    print('data', data)
+    emit('eaten', data , broadcast=True)
     add_more_zombies()
 
 @socketio.on('initialize_main')
@@ -176,17 +181,18 @@ def initialize_main(json):
 
 @socketio.on('eat')
 def on_eat(json):
+    global maxFood
     food_id = json['food_id']
     player_id = json['player_id']
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+food_id).json()
     print('eat data', data)
+    if (int(food_id) > maxFood):
+        data = {'x': 0,'z': 0,'id': food_id}
     emit('eaten', {'food': [data] }, broadcast=True)
     player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
     new_mass = float(player['mass']) + DEFAULT_FOOD_MASS
     requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
     emit('player_mass_update', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
-
-
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
