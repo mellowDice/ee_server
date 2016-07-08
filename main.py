@@ -174,8 +174,8 @@ def on_eat(json):
     player_id = json['player_id']
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+food_id).json()
     print('eat data', data)
-    if (int(food_id) > maxFood):
-        data = {'x': 0,'z': 0,'id': food_id}
+    if (int(food_id) < 0):
+        data = {'x': -1,'z': -1,'id': food_id}
     emit('eaten', {'food': [data] }, broadcast=True)
     player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
     new_mass = float(player['mass']) + DEFAULT_FOOD_MASS
