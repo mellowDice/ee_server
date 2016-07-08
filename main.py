@@ -31,7 +31,7 @@ socketio = SocketIO(app, async_mode='eventlet')
 
 current_zombie_id = 0
 terrain = None
-maxFood = 100
+
 # First, make sure we are working with a clean redis store
 requests.get(app.config['DB_URL'] + '/flush', json={})
 
@@ -169,13 +169,12 @@ def initialize_main(json):
 
 @socketio.on('eat')
 def on_eat(json):
-    global maxFood
     food_id = json['food_id']
     player_id = json['player_id']
     data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=food&id='+food_id).json()
     print('eat data', data)
-    if (int(food_id) > maxFood):
-        data = {'x': 0,'z': 0,'id': food_id}
+    if (int(food_id) < 0):
+        data = {'x': -1,'z': -1,'id': food_id}
     emit('eaten', {'food': [data] }, broadcast=True)
     player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
     new_mass = float(player['mass']) + DEFAULT_FOOD_MASS
