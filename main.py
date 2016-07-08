@@ -18,7 +18,7 @@ DEFAULT_BOOST_COST = 0.1
 MINIMUM_BOOST_COST = 2.4
 BOARD_WIDTH = 250
 BOARD_HEIGHT = 250
-MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
+MIN_PLAYERS_ZOMBIE_THRESHOLD = 0
 DEFAULT_FOOD_MASS = 1
 
 app = Flask(__name__)
@@ -29,13 +29,7 @@ app.config.from_envvar('APP_CONFIG_FILE')
 
 socketio = SocketIO(app, async_mode='eventlet')
 
-user_count = 0
 current_zombie_id = 0
-food = {}
-obstacles = {}
-players = {} 
-users = {}
-
 terrain = None
 maxFood = 100
 # First, make sure we are working with a clean redis store
@@ -81,9 +75,7 @@ def on_connect():
     playersList = requests.get(app.config['DB_URL'] + '/players/get_all').json()
     if playersList != None and len(playersList) > 0: 
         for player in playersList:
-            players[player['id']] = player
             emit('spawn', {'id': player['id'], 'mass': player['mass']}, room=request.sid)
-    
     requests.post(app.config["DB_URL"] + '/users/add', json={'id': request.sid, 'zombies': []})
     requests.post(app.config['DB_URL'] + '/players/add', json={'mass': DEFAULT_PLAYER_MASS, 'id': request.sid})
 
@@ -110,7 +102,6 @@ def add_more_zombies():
     if len(users) <= 0:
         return
     # create up to 20 zombies
-    print('length of players' , len(players))
     for i in range(max(0, MIN_PLAYERS_ZOMBIE_THRESHOLD - len(players))):
         # Choose a random client to add the zombie to
         user_id = random.choice(users)['id']
@@ -118,7 +109,6 @@ def add_more_zombies():
         current_zombie_id += 1
         zombiePositionX = random.random() * (BOARD_WIDTH - 20) + 10
         zombiePositionZ = random.random() * (BOARD_HEIGHT - 20) + 10
-        print('zombie positions', str(zombiePositionX), str(zombiePositionZ))
         zombieID = 'zombie_' + str(current_zombie_id)
         socketio.emit('initialize_zombie_player',
                       {'id': zombieID, 
@@ -145,14 +135,12 @@ def share_user_look_direction(json):
 @socketio.on('boost')
 def share_user_boost_action(json):
     player_id = json['player_id']
-    print('boost', player_id) 
     emit('otherPlayerBoost', {'id': player_id}, broadcast=True, include_self=False)
     player = requests.get(app.config['DB_URL'] + '/players/' + str(player_id)).json()
     player_mass = float(player[0]['mass'])
     new_mass = min(player_mass * (1 - DEFAULT_BOOST_COST), player_mass - MINIMUM_BOOST_COST)
     emit('player_mass_update', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
     requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
-    print('boost mass change', player_mass, new_mass)
 
 # Updates other players on player state in regular intervals
 @socketio.on('player_state_reconcile')
@@ -196,9 +184,13 @@ def on_eat(json):
 
 @socketio.on('collision')
 def regenerate_obstacle(json): 
-    print('obstacle hit', json)
-    data = requests.get(app.config['OBJECTS_URL'] + '/update_object?type=obstacle&id='+json['id']).json()
-    emit('collided', { 'obstacles': [data] }, broadcast=True)
+    obstacle_id = json['obstacle_id']
+    player_id = json['player_id']
+    player = requests.get(app.config['DB_URL'] + '/players/' + player_id).json()[0]
+    new_mass = max(float(player['mass']) * 0.75,  DEFAULT_PLAYER_MASS)
+    requests.post(app.config['DB_URL'] + '/players/add', json={'id': player_id, 'mass': new_mass })
+    emit('player_mass_update', {'id': player_id, 'mass': new_mass}, broadcast=True, include_self=True)
+    emit('other_player_collided_with_obstacle', { 'player_id': player_id }, broadcast=True, include_self=False)
 
 
 # disconnect 
