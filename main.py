@@ -18,7 +18,7 @@ DEFAULT_BOOST_COST = 0.1
 MINIMUM_BOOST_COST = 2.4
 BOARD_WIDTH = 250
 BOARD_HEIGHT = 250
-MIN_PLAYERS_ZOMBIE_THRESHOLD = 0
+MIN_PLAYERS_ZOMBIE_THRESHOLD = 25
 DEFAULT_FOOD_MASS = 1
 
 app = Flask(__name__)
@@ -152,10 +152,10 @@ def relay_player_state(json):
 def kill(json): 
     id = json['id']
     emit('player_killed', {'id': id}, broadcast=True, include_self=True)
-    requests.get(app.config['DB_URL'] + '/players/delete/' + id)
     # return 10 food items with id > 100
     # Range should be from 101 to 150
-    data = requests.get(app.config['OBJECTS_URL'] + '/get_pi_food?x=' + str(json['x_position']) + '&z=' + str(json['z_position'])).json()
+    data = requests.get(app.config['OBJECTS_URL'] + '/get_pi_food?x=' + str(json['x_position']) + '&z=' + str(json['z_position']) + '&player_id=' + id ).json()
+    requests.get(app.config['DB_URL'] + '/players/delete/' + id)
     print('data', data)
     emit('eaten', data , broadcast=True)
     add_more_zombies()
